@@ -22,74 +22,47 @@ char buffer[buffer_size+1];//a záró nullának +1
 
 bool url_found = false;
 int url_ends_at = 0;
-/*
-class cServHttp
-{
-public:
-	int client_socket;
 
-	string zipname;
-	unzFile zipfile;
+int client_socket = 0;
 
-	streambuf buffer;
-
-	bool init(int cli_socket = 0, const string &zname)
-	{
-		//clearall
-		if(0 != cli_socket 
-		&& 0 < zname.length)
-		{
-			client_socket = cli_socket;
-			zipname = zname;
-		}
-
-		return false;
-	}
-	
-	void clean_all(void)
-	{
-	}
-	
-	void get_request(void)
-	{
-		
-	}
-};*/
 
 unzFile zipfile = NULL;
 
-bool get_request(int cli_socket)
+//CRLF = "\r\n"
+int read_section(const char stop)
 {
-	buffer[0] = buffer[4] = 0;
-	int c = read(cli_socket, buffer, 4);
-	if(c == 3)
+	int j, ret;
+	for(j = 0; j < buffer_size && (ret = read(client_socket, buffer+j, 1)) && buffer[j] != stop; j++)
 	{
-		for(int i = 0; i < 3; i++) buffer[i] = tolower(buffer[i]);
-		if(0 == strcmp("get " , buffer))
-		{
-			char k = getc(cli_socket);
-			int i = 0;
-			for(i = 0; i < buffer_size && k != " "; i++)
-			{
-				buffer[i] = k;
-				k = getc(cli_socket);
-			}
-
-			buffer[i] = 0;
-//			if(i == 0) buffer = "index.html";//ha nincs megadva filenév akkor ezt keresi, ha nincs akkor listát fog generálni
-
-			if(i == buffer_size) clog << "Small adress buffer" << endl;
-			cout << "GET: " << buffer << endl;
-			return true;
-			 
-		}else{
-			cerr << "No GET!" << endl;
-		}
-	}else{
-		cerr << "No request." << endl;
+		buffer[j] = tolower(buffer[j]);
 	}
+
+	if(ret == 0 || ret == -1 || j == buffer_size)
+	{
+		buffer[buffer_size] = 0;
+		cerr << "Socket read failed" << buffer << endl;
+		return 0;
+	}
+
+	buffer[j] = 0;
+
+	cout << "j=" << j << endl << "stop:\"" << stop << "\"" << endl << "section: " << buffer << endl << endl;
+
+	return j;
+}
+
+bool get_request(void)
+{
+	if(read_section(' ') && 0 == strcmp("get", buffer) && read_section(' '))
+	{
+	}else{
+		cerr << "Bad request, not GET" << endl;
+	}
+
 	return false;
 }
+
+
 /*
 bool send_page(int cli_socket)
 {
@@ -104,21 +77,14 @@ bool send_message(int cli_socket)
 }
 */
 
-void webserv(int cli_socket)
+void close_zipfile(void)
 {
-	clog << endl << "Serving client" << endl;
-
-	if(get_request(cli_socket))
+	if(NULL != zipfile)
 	{
-		
-		send_file_list();
+		unzClose(zipfile);
+		zipfile = NULL;
 	}
-
-	close(cli_socket);
-
-	clog << endl << "Serving client" << endl;
 }
-
 
 bool open_zipfile(void)
 {
@@ -134,21 +100,12 @@ bool open_zipfile(void)
 	return false;
 }
 
-void close_zipfile(void)
-{
-	if(NULL != zipfile)
-	{
-		unzClose(zipfile);
-		zipfile = NULL;
-	}
-}
-
 bool send_file(void)
 {
 	return false;
 }
 
-bool send_file_list(int cli_socket)
+bool send_file_list(void)
 {	
 	if( NULL != zipfile)
 	{
@@ -193,6 +150,21 @@ bool find_file(const char *path = 0)
 	return false;
 }
 
+void webserv(void)
+{
+	clog << endl << "Serving client" << endl;
+
+	if(get_request())
+	{
+		
+		send_file_list();
+	}
+
+	close(client_socket);
+
+	clog << endl << "Serving client" << endl;
+}
+
 
 
 int main(int argc, char **argv)
@@ -211,7 +183,7 @@ int main(int argc, char **argv)
 
 //amikor egy kapcsolat letrejon csinal egy childprocess-t es annak adja at a kliens socketet
 //client socket
-	int client_socket;
+//	int client_socket;
 	struct sockaddr_in client_address;
 	socklen_t length;
 
@@ -227,7 +199,7 @@ int main(int argc, char **argv)
 					if(0 <= (client_socket = accept(listen_socket, (struct sockaddr *)&client_address, &length)))
 					{
 						cout << endl << "New client:" << ntohl(client_address.sin_port) << endl;
-						webserv(client_socket);
+						webserv();
 					}else{
 						perror("accept");
 					}
