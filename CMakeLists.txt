@@ -14,8 +14,7 @@ target_link_libraries(unzip ${ZLIB}/build/libz.a)
 add_executable(zip-reader mysrv.cpp)
 
 #az szükséges statikus könyvtárak megadása
-target_link_libraries(zip-reader ${CMAKE_CURRENT_BINARY_DIR}/libunzip.a)
-#${ugy latszik nem kell mert az libunzip.a-ban mar benne van LIB}/build/libz.a)
+target_link_libraries(zip-reader unzip)
 
 #set(VERSION "0.1")
 

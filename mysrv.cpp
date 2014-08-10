@@ -7,59 +7,90 @@
 #include <cctype>
 #include <cstring>
 
+#include "../zlib/contrib/minizip/unzip.h"
+
 using namespace std;
 
+//atmeneti valtozok
+
+char zipname[] = "../abs-guide.zip";
+char root_path[] = "";
+
+//-----------------
 const int buffer_size = 2048;
-char buffer[buffer_size];
+char buffer[buffer_size+1];//a záró nullának +1
 
 bool url_found = false;
 int url_ends_at = 0;
+/*
+class cServHttp
+{
+public:
+	int client_socket;
+
+	string zipname;
+	unzFile zipfile;
+
+	streambuf buffer;
+
+	bool init(int cli_socket = 0, const string &zname)
+	{
+		//clearall
+		if(0 != cli_socket 
+		&& 0 < zname.length)
+		{
+			client_socket = cli_socket;
+			zipname = zname;
+		}
+
+		return false;
+	}
+	
+	void clean_all(void)
+	{
+	}
+	
+	void get_request(void)
+	{
+		
+	}
+};*/
+
+unzFile zipfile = NULL;
 
 bool get_request(int cli_socket)
 {
-	int c = read(cli_socket, buffer, buffer_size-1);
-	if(c != 0)
+	buffer[0] = buffer[4] = 0;
+	int c = read(cli_socket, buffer, 4);
+	if(c == 3)
 	{
-		if(c <= buffer_size)
+		for(int i = 0; i < 3; i++) buffer[i] = tolower(buffer[i]);
+		if(0 == strcmp("get " , buffer))
 		{
-			clog << "Request read. Buffer is enough." << endl;
-			buffer[c] = 0;
-		}else{
-			clog << "Request read. Buffer is not enough." << endl;
-			buffer[buffer_size-1] = 0;
-		}
-
-		for(int i=0; i < c; i++) buffer[i] = tolower(buffer[i]);
-
-		clog << buffer << endl;
-
-		if(0 == strncmp(buffer, "get ", 4))
-		{
-			clog << "Found 'GET ' in first 3 character" << endl;
-			int j = 0;
-			for(j=4; j<c && buffer[j] != ' '; j++);
-			if(j<c)
+			char k = getc(cli_socket);
+			int i = 0;
+			for(i = 0; i < buffer_size && k != " "; i++)
 			{
-				clog << "Found space after URI." << endl;
-				url_ends_at = j;
-				
-				if(0 == strncmp(buffer+j, " http", 5))
-				{
-					clog << "Found end of URL" << endl;
-					return true;
-				}
-			}else{
-				cerr << "No end of URL" << endl;
+				buffer[i] = k;
+				k = getc(cli_socket);
 			}
+
+			buffer[i] = 0;
+//			if(i == 0) buffer = "index.html";//ha nincs megadva filenév akkor ezt keresi, ha nincs akkor listát fog generálni
+
+			if(i == buffer_size) clog << "Small adress buffer" << endl;
+			cout << "GET: " << buffer << endl;
+			return true;
+			 
 		}else{
-			cerr << "Not found GET request" << endl;
+			cerr << "No GET!" << endl;
 		}
 	}else{
-		cerr << "No client message." << endl;
+		cerr << "No request." << endl;
 	}
 	return false;
 }
-
+/*
 bool send_page(int cli_socket)
 {
 	
@@ -71,20 +102,98 @@ bool send_message(int cli_socket)
 {
 
 }
+*/
 
 void webserv(int cli_socket)
 {
 	clog << endl << "Serving client" << endl;
 
-	while(get_request(cli_socket))
+	if(get_request(cli_socket))
 	{
 		
+		send_file_list();
 	}
 
 	close(cli_socket);
 
 	clog << endl << "Serving client" << endl;
 }
+
+
+bool open_zipfile(void)
+{
+	close_zipfile();
+
+	zipfile = unzOpen(zipname);
+	if(NULL != zipfile)
+	{
+		return true;	
+	}else{
+		cerr << "unzOpen failed" << endl;
+	}
+	return false;
+}
+
+void close_zipfile(void)
+{
+	if(NULL != zipfile)
+	{
+		unzClose(zipfile);
+		zipfile = NULL;
+	}
+}
+
+bool send_file(void)
+{
+	return false;
+}
+
+bool send_file_list(int cli_socket)
+{	
+	if( NULL != zipfile)
+	{
+		int ret = unzGoToFirstFile(zipfile);
+			for(int f = 1; UNZ_OK == ret && f < 10000; f++)//10000 csak egy korlát
+			{
+				unz_file_info file_info;
+				int filename_buffer_size = 1024;
+				char filename_buffer[filename_buffer_size];
+
+				ret = unzGetCurrentFileInfo(zipfile, &file_info, filename_buffer, filename_buffer_size, NULL, 0, NULL, 0);
+				if(UNZ_OK == ret)
+				{
+				}else{
+					cerr << "unzGetCurrentFileInfo failed" << endl;
+				} 
+
+				ret = unzGoToNextFile(zipfile);
+			}//for
+		}else{
+			cerr << "unzGetGlobalInfo failed" << endl;
+		}
+	
+	return false;
+}
+
+bool find_file(const char *path = 0)
+{
+	if(NULL != zipfile && 0 != path)
+	{
+		if( UNZ_OK == unzLocateFile(zipfile, path, 2))
+		{
+			send_file();
+			return true;
+		}else{
+			send_file_list();
+			return true;
+		}
+	}
+
+//	send_message(); //send error message
+	return false;
+}
+
+
 
 int main(int argc, char **argv)
 {
