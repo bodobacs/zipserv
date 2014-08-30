@@ -14,10 +14,16 @@ Mivel marha nehéz olyan értelmezőt írni ami minden http kérést hatékonyan
 #include <cctype>
 #include <cstring>
 #include <sstream>
+#include <iomanip>
 
 #include "../zlib/contrib/minizip/unzip.h"
 
 using namespace std;
+
+const string C_err  ("\x1B[31m");
+const string C_ok   ("\x1B[32m");
+const string C_warn ("\x1B[33m");
+const string C_reset("\033[0m" );
 
 const string appname("zipserv-dev");
 
@@ -40,12 +46,13 @@ void send_NOT_FOUND(const string &what)//ez jó
 
 	content_ss << "<html><head>\n<title>404 Not Found</title>\n</head><body>\n<h1>" << what << " Not Found</h1>\nThe requested URL was not found on this server.\n</body></html>\n";
 
-	stringstream answer_ss;
-	answer_ss << "HTTP/1.1 404 Not Found\nContent-Length: " << content_ss.str().length() << "\nConnection: close\nContent-Type: text/html\n\n" << content_ss.str();
+	stringstream response;
+	response << "HTTP/1.1 404 Not Found\nContent-Length: " << content_ss.str().length() << "\nConnection: close\nContent-Type: text/html\n\n" << content_ss.str();
 
-	if(0 > send(client_socket, answer_ss.str().c_str(), answer_ss.str().length(), 0)) perror("Send message content");
+	if(0 > send(client_socket, response.str().c_str(), response.str().length(), 0)) perror("Send message content");
 
-	cout << "[Response]" << endl << answer_ss.str() << endl << "[ResponseEnd]" << endl;
+	clog << "[NOT FOUND 404 sent] " << endl;
+//	cout << response.str() << endl;
 }
 
 void close_zipfile(void)
@@ -66,7 +73,7 @@ bool open_zipfile(void)
 	{
 		return true;	
 	}else{
-		cerr << "unzOpen failed" << endl;
+		cerr << C_err << "[unzOpen failed]" << C_reset << endl;
 	}
 	return false;
 }
@@ -79,55 +86,60 @@ bool send_file(void)
 	unz_file_info file_info;
 	int filename_buffer_size = 1024;
 	char filename_buffer[filename_buffer_size];
-
+	int chunks = 0;
+	
 	int ret = unzGetCurrentFileInfo(zipfile, &file_info, filename_buffer, filename_buffer_size, NULL, 0, NULL, 0);
 	if(UNZ_OK == ret)
 	{
-		char *pbuffer = new char[file_info.uncompressed_size+1];
-
-		if(NULL != pbuffer)
+		if(UNZ_OK == unzOpenCurrentFile(zipfile))
 		{
-			if(UNZ_OK == unzOpenCurrentFile(zipfile))
+			clog << "[Uncompressed size] " << file_info.uncompressed_size << endl;
+
+			string::size_type pos = URI_str.find_last_of('.');
+			string filetype;
+
+			if(0)//string::npos != pos && string::npos != URI_str[pos+1])
 			{
-				clog << "[Uncompressed size] " << file_info.uncompressed_size << endl;
-				if(0 <= (ret = unzReadCurrentFile(zipfile, pbuffer, file_info.uncompressed_size)))
+				filetype = URI_str.substr(pos+1);
+			}else{
+				filetype.assign("text/html");
+			}
+
+			const int buffsize = 256;
+			char buffer[buffsize];
+			stringstream response;
+			response << "HTTP/1.1 200 OK\nServer: " << appname << "\nContent-Type: " << filetype << "\nTransfer-Encoding: chunked\n\n" << setbase(16);
+
+			while(0 <= (ret = unzReadCurrentFile(zipfile, buffer, buffsize)))
+			{
+				response << ret << "\n";
+				response.write(buffer, ret);
+				response << "\n";
+
+//				clog << response.str() << endl;
+
+				if(0 < send(client_socket, response.str().data(), response.str().length(), 0))
 				{
-					stringstream response;
-					string::size_type pos = URI_str.find_last_of('.');
-					string filetype;
+					chunks++;
+					success = true;
+					if(ret == 0){ clog << C_ok << "[Last chunk sent]" << C_reset << endl;  break; }
+				}else{ 
+					cerr << C_err << "[Sending response to client failed] " << C_reset << endl; 
+					perror("send"); 
+					success = false;
+					break;
+				}
+				response.str(string()); //empty response stream
+			}//while else cerr << C_err  << "[unzRead failed: " << ret << " ]" << C_reset << endl;
+			
+			unzCloseCurrentFile(zipfile);
+		}else cerr << C_err << "[unzOpen failed]" << C_reset << endl;
+	}else cerr << C_err << "[Reading zip's file info failed]" << C_reset << endl;
 
-					if(string::npos != pos && string::npos != URI_str[pos+1])
-					{
-						filetype = URI_str.substr(pos+1);
-					}else{
-						filetype.assign("text/html");
-					}
-
-					response << "HTTP/1.1 200 OK\nServer: " << appname << "\nContent-Length: " << file_info.uncompressed_size << "\nConnection: close\nContent-Type: " << "text/html" << "\n\n";
-					response.write(pbuffer, file_info.uncompressed_size);
-
-
-					clog << response.str() << endl;
-
-				//	*(pbuffer+file_info.uncompressed_size) = 0;
-				//	cout << pbuffer << endl;
-
-					if(0 < (ret = send(client_socket, response.str().c_str(), response.str().length(), 0)))
-					{
-						clog << "[Response sent]" << endl;
-						success = true;
-					}else{ cerr << "sending to client failed" << endl; perror("send"); }
-					clog << "[" << ret << " bytes]" << endl;
-				}else cerr << "[unzRead failed: " << ret << " ]" << endl;
-				
-				unzCloseCurrentFile(zipfile);
-			}else cerr << "[unzOpen failed]" << endl;
-
-			delete[] pbuffer;
-		}else cerr << "[Memory allocation failed]" << endl;
-	}else cerr << "[Reading zip's file info failed]" << endl;
-
-	if(!success) send_NOT_FOUND(URI_str);
+	if(success)
+	{
+		clog << C_ok << "[" << chunks << " chunks]" << C_reset << endl;
+	}else send_NOT_FOUND(URI_str);
 
 	return success;
 }
@@ -185,7 +197,7 @@ bool parse_request(void)
 	ss >> token;
 	if(!token.compare("GET") || !token.compare("HEADER"))
 	{
-		cout << "[Found] " << token << endl;
+		clog << C_ok << "[Found] " << token << C_reset << endl;
 		ss >> URI_str;
 		if(0 < URI_str.length())
 		{
@@ -194,7 +206,7 @@ bool parse_request(void)
 		}
 	}
 
-	cout << "[Not a GET request] " << token << endl;
+	clog << C_warn << "[Not a GET request] " << token << C_reset << endl;
 	return false;
 }
 
@@ -205,7 +217,7 @@ bool get_request(void)
 	if(0 < (ret = recv(client_socket, buffer, buffer_size, 0)))
 	{
 		request_str.assign(buffer, ret);
-		clog << "[Request start] " << endl << request_str << endl << "[Request end]" << endl;
+		clog << C_warn << "[Request start] " << endl << request_str << endl << "[Request end]" << C_reset << endl;
 
 		return true;
 
@@ -221,27 +233,27 @@ bool find_file(void)
 {
 	if(NULL != zipfile)
 	{
-		clog << "[Searching zip for] " << URI_str.c_str()+1 << endl;
+		clog << C_ok << "[Searching zip for] " << URI_str.c_str()+1 << C_reset << endl;
 		if( UNZ_OK == unzLocateFile(zipfile, URI_str.c_str()+1, 2))
 		{
 			return true;
 		}
 	}
 
-	clog << "[Not found] " << URI_str << endl;
+	clog << C_warn << "[Not found] " << URI_str << C_reset << endl;
 	return false;
 }
 
 void webserv(void)
 {
-	clog << endl << "[Socket ready, serving client]" << endl;
+	clog << endl << C_ok << "[Socket ready, serving client]" << C_reset << endl;
 
 //	read_all_request();
 	open_zipfile();
 
 	while(get_request() && parse_request())
 	{
-		clog << "[RESPONSE START]" << endl;
+		clog << C_warn << "[RESPONSE START]" << C_reset << endl;
 		if(find_file())
 		{
 			send_file();
@@ -259,21 +271,21 @@ void webserv(void)
 				send_NOT_FOUND(URI_str);
 			}
 		}
-		clog << "[RESPONSE END]" << endl;
+		clog << C_warn << "[RESPONSE END]" << C_reset << endl;
 	}
 	close_zipfile();
 
 	sleep(1); //EZ NAGYON KELL, ki kell találni valami jobbat helyette
 	close(client_socket);
 
-	clog << "[Socket closed]" << endl;
+	clog << C_warn << "[Socket closed]" << C_reset << endl;
 }
 
 
 
 int main(int argc, char **argv)
 {
-
+	clog << C_ok << "[zipserv started]" << C_reset << endl;
 // demon()?
 //szerver listener socket
 	int listen_socket; //ezen jonnek a keresek

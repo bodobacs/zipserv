@@ -1,20 +1,20 @@
 cmake_minimum_required(VERSION 2.4.4)
 set(CMAKE_ALLOW_LOOSE_LOOP_CONSTRUCTS ON)
 
-project(zip-reader)
+project(zipserv)
 
-#saját változó ami  zlib helyére mutat
+#variable set to zlib directory
 set(ZLIB ${CMAKE_SOURCE_DIR}/../zlib)
 
-#minizip lefordítása
+#dependencies: zlib/minizip
 add_library(unzip ${ZLIB}/contrib/minizip/unzip.c ${ZLIB}/contrib/minizip/ioapi.c)
 target_link_libraries(unzip ${ZLIB}/build/libz.a)
 
-#ez csinál egy új target-et
-add_executable(zip-reader mysrv.cpp)
+#target
+add_executable(zipserv mysrv.cpp)
 
-#az szükséges statikus könyvtárak megadása
-target_link_libraries(zip-reader unzip)
+#used static libs
+target_link_libraries(zipserv unzip)
 
 #set(VERSION "0.1")
 
