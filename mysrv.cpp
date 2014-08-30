@@ -13,152 +13,39 @@ Mivel marha nehéz olyan értelmezőt írni ami minden http kérést hatékonyan
 #include <cstdio>
 #include <cctype>
 #include <cstring>
+#include <sstream>
 
 #include "../zlib/contrib/minizip/unzip.h"
 
 using namespace std;
 
+const string appname("zipserv-dev");
+
 //atmeneti valtozok
 
 char zipname[] = "../abs-guide.zip";
 
-const string msg_SUCCESS("HTTP/1.1 200 OK\nServer: zipserv\nContent-Type: text/html\n\n<html><head><title>File list</title></head><body><ol>\n");
-
-const string msg_NOT_FOUND("HTTP/1.1 404 Not Found\nContent-Length: 136\nConnection: close\nContent-Type: text/html\n\n<html><head>\n<title>404 Not Found</title>\n</head><body>\n<h1>Not Found</h1>\nThe requested URL was not found on this server.\n</body></html>\n");
-
 //-----------------
 const int buffer_size = 2048;//ennek elégnek kéne lennie, firefoxnak van 8kb
-char buffer[buffer_size+1];//a záró nullának +1
-
-bool url_found = false;
-int url_ends_at = 0;
+string request_str(buffer_size, '0');
+string URI_str;
 
 int client_socket = 0;
 
-
 unzFile zipfile = NULL;
 
-void read_all_request(void)
+void send_NOT_FOUND(const string &what)//ez jó
 {
-	int ret = read(client_socket, buffer, buffer_size);
-	buffer[buffer_size] = 0;
+	stringstream content_ss;
 
-	cout << "Full request: " << buffer << endl;
-}
+	content_ss << "<html><head>\n<title>404 Not Found</title>\n</head><body>\n<h1>" << what << " Not Found</h1>\nThe requested URL was not found on this server.\n</body></html>\n";
 
-//CRLF = "\r\n"
-int read_section(const char stop)
-{
-	int j, ret;
+	stringstream answer_ss;
+	answer_ss << "HTTP/1.1 404 Not Found\nContent-Length: " << content_ss.str().length() << "\nConnection: close\nContent-Type: text/html\n\n" << content_ss.str();
 
-	for(j = 0; j < buffer_size && (ret = read(client_socket, buffer+j, 1)) && buffer[j] != stop; ('\n' == buffer[j] || '\r' == buffer[j] ? 0 : j++))
-	{
-/*		if('\r' == buffer[j] || '\n' == buffer[j])
-		{
-			j--;	
-		}	
-*/		buffer[j] = tolower(buffer[j]);
-	}
+	if(0 > send(client_socket, answer_ss.str().c_str(), answer_ss.str().length(), 0)) perror("Send message content");
 
-	if(ret == 0 || ret == -1 || j == buffer_size)
-	{
-		buffer[buffer_size] = 0;
-		cerr << "Socket read failed" << buffer << endl;
-		return 0;
-	}
-
-	buffer[j] = 0;
-
-	cout << "j=" << j << endl << "stop:\"" << stop << "\"" << endl << "section: " << buffer << endl << endl;
-
-	return j;
-}
-/*
-bool is_GET(void)
-{
-	int j, ret;
-	char minibuf[4];
-	bool swallow = false;
-
-	for(j = 0; j < 4 && (ret = read(client_socket, minibuf+j, 1)); (swallow ? 0 : j++))
-	{
-		if( isspace(minibuf[j]) )
-		{
-			swallow = true;
-		}else{
-			minibuf[j] = tolower(minibuf[j]);
-			swallow = false;
-		}
-	}
-
-	minibuf[4] = 0;
-
-	if(0 == strcmp("get", minibuf)) return true;
-	return false;
-}
-*/
-
-//a folyamatos kapcsolat miatt a kérések egymás után érkeznek, ezért keres egy "GET " mintát és az ez után következő szakaszt tekinti a kért URL-nek. Gondok lehetnek, ha POST-ban kap valami tartalmat amiben van ilyen minta, de ez elég esélytelen ha mégis gondok lennének akkor lehet nézni, hogy milyen request jott és ha nem get akkor dobni egy hibát
-bool find_GET(void)
-{
-	const char req[] = {"get "};
-	bool last_is_space = true;//if GET at the start
-
-	int ret;
-	while(ret = read(client_socket, buffer, 1))
-	{
-		if(isspace(buffer[0]))
-		{
-			last_is_space = true;
-		}else{
-			if(last_is_space)
-			{
-				last_is_space = false;
-				buffer[0] = tolower(buffer[0]);
-				int i = 0; 
-				for(; ret && i < sizeof(req)-1 && buffer[0] == req[i] ; i++ )
-				{
-					ret = read(client_socket, buffer, 1);
-					buffer[0] = tolower(buffer[0]);
-				}
-
-//				cout << "i=\"" << i << "\" buffer[0]=\"" << buffer[0] << "\" sizeof(req)=" << sizeof(req) << endl;
-				if(ret && i == sizeof(req)-1) return true;
-			}
-		}
-	}
-	cerr << "find_GET failed" << endl;
-	return false;
-}
-
-bool get_URL(void)
-{
-	int j, ret;
-	bool swallow = false;
-
-	for(j = 0; j < buffer_size && (ret = read(client_socket, buffer+j, 1)); (swallow ? 0 : j++))
-	{	
-		if( isspace(buffer[j]) )
-		{
-			swallow = true;
-			if(j) break;//már nem az elejéről enné a whitespace karikat tehát a végén vagyunk akkor ennyi
-		}else{
-			buffer[j] = tolower(buffer[j]);
-			swallow = false;
-		}
-	}
-
-	buffer[j] = 0;
-
-	if(ret == 0 || ret == -1 || j == buffer_size)
-	{
-		cerr << "Socket read failed" << buffer << endl;
-		return false;
-	}
-
-	cout << "URL:\"" << buffer << "\"" << endl;
-	return true;
-
+	cout << "[Response]" << endl << answer_ss.str() << endl << "[ResponseEnd]" << endl;
 }
 
 void close_zipfile(void)
@@ -186,111 +73,200 @@ bool open_zipfile(void)
 
 bool send_file(void)
 {
-	return false;
+	bool success = false;
+	clog << "[Sending file]" << endl;
+
+	unz_file_info file_info;
+	int filename_buffer_size = 1024;
+	char filename_buffer[filename_buffer_size];
+
+	int ret = unzGetCurrentFileInfo(zipfile, &file_info, filename_buffer, filename_buffer_size, NULL, 0, NULL, 0);
+	if(UNZ_OK == ret)
+	{
+		char *pbuffer = new char[file_info.uncompressed_size+1];
+
+		if(NULL != pbuffer)
+		{
+			if(UNZ_OK == unzOpenCurrentFile(zipfile))
+			{
+				clog << "[Uncompressed size] " << file_info.uncompressed_size << endl;
+				if(0 <= (ret = unzReadCurrentFile(zipfile, pbuffer, file_info.uncompressed_size)))
+				{
+					stringstream response;
+					string::size_type pos = URI_str.find_last_of('.');
+					string filetype;
+
+					if(string::npos != pos && string::npos != URI_str[pos+1])
+					{
+						filetype = URI_str.substr(pos+1);
+					}else{
+						filetype.assign("text/html");
+					}
+
+					response << "HTTP/1.1 200 OK\nServer: " << appname << "\nContent-Length: " << file_info.uncompressed_size << "\nConnection: close\nContent-Type: " << "text/html" << "\n\n";
+					response.write(pbuffer, file_info.uncompressed_size);
+
+
+					clog << response.str() << endl;
+
+				//	*(pbuffer+file_info.uncompressed_size) = 0;
+				//	cout << pbuffer << endl;
+
+					if(0 < (ret = send(client_socket, response.str().c_str(), response.str().length(), 0)))
+					{
+						clog << "[Response sent]" << endl;
+						success = true;
+					}else{ cerr << "sending to client failed" << endl; perror("send"); }
+					clog << "[" << ret << " bytes]" << endl;
+				}else cerr << "[unzRead failed: " << ret << " ]" << endl;
+				
+				unzCloseCurrentFile(zipfile);
+			}else cerr << "[unzOpen failed]" << endl;
+
+			delete[] pbuffer;
+		}else cerr << "[Memory allocation failed]" << endl;
+	}else cerr << "[Reading zip's file info failed]" << endl;
+
+	if(!success) send_NOT_FOUND(URI_str);
+
+	return success;
 }
 
 void send_file_list(void)
 {	
+	stringstream content;
+	content << "<html><header>File list</header><body>" << endl;
+
 	if( NULL != zipfile)
 	{
 		int ret = unzGoToFirstFile(zipfile);
-			for(int f = 1; UNZ_OK == ret && f < 10000; f++)//10000 csak egy korlát
+		for(int f = 0; UNZ_OK == ret && f < 10000; f++)//10000 csak egy korlát
+		{
+			unz_file_info file_info;
+			int filename_buffer_size = 1024;
+			char filename_buffer[filename_buffer_size];
+
+			ret = unzGetCurrentFileInfo(zipfile, &file_info, filename_buffer, filename_buffer_size, NULL, 0, NULL, 0);
+			if(UNZ_OK == ret)
 			{
-				unz_file_info file_info;
-				int filename_buffer_size = 1024;
-				char filename_buffer[filename_buffer_size];
+				content << "<li><a href=\"" << filename_buffer << "\"/>" << filename_buffer << "</li>" << endl;
+			}else{
+				if(!f) content << "<h1>Files not found in zip!</h1>" << endl;
+				break;
+			} 
 
-				ret = unzGetCurrentFileInfo(zipfile, &file_info, filename_buffer, filename_buffer_size, NULL, 0, NULL, 0);
-				if(UNZ_OK == ret)
-				{
-					sprintf(buffer, "<li><a href=\"%s\"/>%s</li>", filename_buffer, filename_buffer);
-					write(client_socket, buffer, strlen(buffer));
-					//cout << buffer << endl;
-				}else{
-					cerr << "unzGetCurrentFileInfo failed" << endl;
-				} 
+			ret = unzGoToNextFile(zipfile);
+		}//for
+	}else{
+		content << "<h1>Cannot list zip!</h1>" << endl;
+		
+//		cerr << "unzGetGlobalInfo failed" << endl;
+	}
 
-				ret = unzGoToNextFile(zipfile);
-			}//for
-		}else{
-			cerr << "unzGetGlobalInfo failed" << endl;
-		}
-	
+	content << "</body></html>" << endl;
+	stringstream response;
+
+	response << "HTTP/1.1 200 OK\nServer: " << appname << "\nContent-Length: " << content.str().length() << "\nConnection: keep-alive\nContent-Type: html\n\n" << content.str() << flush;
+
+	if(0 > send(client_socket, response.str().c_str(), response.str().length(), 0)) perror("send");
 	return;
 }
 
 void send_error(void)
 {
-	cerr << "send_error called" << endl;
+	cerr << "send_error() called" << endl;
 }
 
-bool get_request(void)
+bool parse_request(void)
 {
-	if(open_zipfile() && find_GET() && get_URL())
-	{
-		clog << "GET and URL found" << endl;
-		
-		
-		sprintf(buffer, "HTTP/1.1 200 OK\nServer: zipserv\nContent-Type: text/html\n\n<html><head><title>File list</title></head><body><ol>\n");
-		write(client_socket, buffer, strlen(buffer));
+	stringstream ss(request_str);
 
-		send_file_list();		
-
-		sprintf(buffer, "</ol></body></html>\n\n");
-		write(client_socket, buffer, strlen(buffer));
-
-		close_zipfile();
-		return true;
-	}else{
-		send_error();
-	}
-/*
-	if(read_section(' ') && && read_section(' '))
+	string token;
+	ss >> token;
+	if(!token.compare("GET") || !token.compare("HEADER"))
 	{
-	}else{
-		cerr << "Bad request, not GET" << endl;
-	}
-*/
-	return false;
-}
-bool find_file(void)
-{
-	if(NULL != zipfile)
-	{
-		if( UNZ_OK == unzLocateFile(zipfile, buffer, 2))
+		cout << "[Found] " << token << endl;
+		ss >> URI_str;
+		if(0 < URI_str.length())
 		{
-			send_file();
-			
-			clog << "File found." << endl;
-			return true;
-		}else{
-			
-			write(client_socket, msg_NOT_FOUND.c_str(), msg_NOT_FOUND.length());
-
-		//	send_file_list();
-
-			cerr << "File not found" << endl;
+			cout << "[URL] " << URI_str << endl;
 			return true;
 		}
 	}
 
-//	send_message(); //send error message
+	cout << "[Not a GET request] " << token << endl;
+	return false;
+}
+
+bool get_request(void)
+{
+	char buffer[buffer_size];
+	int ret;
+	if(0 < (ret = recv(client_socket, buffer, buffer_size, 0)))
+	{
+		request_str.assign(buffer, ret);
+		clog << "[Request start] " << endl << request_str << endl << "[Request end]" << endl;
+
+		return true;
+
+	}else if(ret < 0)
+	{
+		perror("recv");
+	}
+	
+	return false;
+}
+
+bool find_file(void)
+{
+	if(NULL != zipfile)
+	{
+		clog << "[Searching zip for] " << URI_str.c_str()+1 << endl;
+		if( UNZ_OK == unzLocateFile(zipfile, URI_str.c_str()+1, 2))
+		{
+			return true;
+		}
+	}
+
+	clog << "[Not found] " << URI_str << endl;
 	return false;
 }
 
 void webserv(void)
 {
-	clog << endl << "Serving client" << endl;
+	clog << endl << "[Socket ready, serving client]" << endl;
 
 //	read_all_request();
-	while(get_request())
+	open_zipfile();
+
+	while(get_request() && parse_request())
 	{
+		clog << "[RESPONSE START]" << endl;
+		if(find_file())
+		{
+			send_file();
+		}else{
+			if(!URI_str.compare("/"))
+			{
+				URI_str.assign("/index.html");
+				if(find_file())
+				{
+					send_file();
+				}else{
+					send_file_list();
+				}
+			}else{
+				send_NOT_FOUND(URI_str);
+			}
+		}
+		clog << "[RESPONSE END]" << endl;
 	}
-	
+	close_zipfile();
+
 	sleep(1); //EZ NAGYON KELL, ki kell találni valami jobbat helyette
 	close(client_socket);
 
-	clog << endl << "Socket closed." << endl;
+	clog << "[Socket closed]" << endl;
 }
 
 
@@ -326,7 +302,7 @@ int main(int argc, char **argv)
 				{
 					if(0 <= (client_socket = accept(listen_socket, (struct sockaddr *)&client_address, &length)))
 					{
-						cout << endl << "New client:" << ntohl(client_address.sin_port) << endl;
+						cout << endl << "[New client connected] " << ntohl(client_address.sin_port) << endl;
 
 						linger lin; lin.l_onoff = 1; lin.l_linger = 5;
 					/*	if(setsockopt(client_socket, SOL_SOCKET, SO_LINGER, (void*)&lin, sizeof(lin)))
@@ -336,19 +312,20 @@ int main(int argc, char **argv)
 */
 						webserv();
 					}else{
-						perror("accept");
+						perror("[ accept() ] ");
 					}
 				}//while
 			}else{
-				perror("listen");
+				perror("[ listen() ]");
 			}
 		}else{
-			perror("bind");
+			perror("[ bind() ]");
 		}
 	}
 
 	close(listen_socket);
-	cout << endl << "Server stopped" << endl;
+
+	clog << endl << "[Server stopped]" << endl;
 
 return 0;
 }
