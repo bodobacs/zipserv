@@ -3,6 +3,9 @@ set(CMAKE_ALLOW_LOOSE_LOOP_CONSTRUCTS ON)
 
 project(zipserv)
 
+#new way initialization of mimetypes map<> required c++11
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x")
+
 #variable set to zlib directory
 set(ZLIB ${CMAKE_SOURCE_DIR}/../zlib)
 

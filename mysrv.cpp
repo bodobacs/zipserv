@@ -17,6 +17,7 @@ Mivel marha nehéz olyan értelmezőt írni ami minden http kérést hatékonyan
 #include <iomanip>
 
 #include "../zlib/contrib/minizip/unzip.h"
+#include "mimetypes.h"
 
 using namespace std;
 
@@ -25,11 +26,37 @@ const string C_ok   ("\x1B[32m");
 const string C_warn ("\x1B[33m");
 const string C_reset("\033[0m" );
 
+const string NOT_FOUND("NOT_FOUND");
+
+const std::map<int, std::string> unzip_return_codes = {
+
+{ UNZ_OK, "UNZ_OK" },
+{ UNZ_END_OF_LIST_OF_FILE, "UNZ_END_OF_LIST_OF_FILE" },
+{ UNZ_ERRNO, "UNZ_ERRNO" },
+{ UNZ_EOF,"UNZ_EOF" },
+{ UNZ_PARAMERROR, "UNZ_PARAMERROR" },
+{ UNZ_BADZIPFILE, "UNZ_BADZIPFILE" },
+{ UNZ_INTERNALERROR, "UNZ_INTERNALERROR"},
+{ UNZ_CRCERROR, "UNZ_CRCERROR"}
+
+};
+
+const string &get_unzip_error(int code)
+{
+	const map<int, string>::const_iterator itr = unzip_return_codes.find(code);
+
+	if(unzip_return_codes.end() != itr) return (itr->second);
+
+	cerr << "unzip code not found" << endl;
+	return NOT_FOUND;
+}
+
 const string appname("zipserv-dev");
 
 //atmeneti valtozok
 
-char zipname[] = "../abs-guide.zip";
+//string zipname("../abs-guide.zip");
+string zipname("irwin.zip");
 
 //-----------------
 const int buffer_size = 2048;//ennek elégnek kéne lennie, firefoxnak van 8kb
@@ -68,7 +95,7 @@ bool open_zipfile(void)
 {
 	close_zipfile();
 
-	zipfile = unzOpen(zipname);
+	zipfile = unzOpen(zipname.c_str());
 	if(NULL != zipfile)
 	{
 		return true;	
@@ -91,55 +118,68 @@ bool send_file(void)
 	int ret = unzGetCurrentFileInfo(zipfile, &file_info, filename_buffer, filename_buffer_size, NULL, 0, NULL, 0);
 	if(UNZ_OK == ret)
 	{
-		if(UNZ_OK == unzOpenCurrentFile(zipfile))
+		if(UNZ_OK == (ret = unzOpenCurrentFile(zipfile)))
 		{
-			clog << "[Uncompressed size] " << file_info.uncompressed_size << endl;
+//			clog << "[Uncompressed size] " << file_info.uncompressed_size << endl;
 
 			string::size_type pos = URI_str.find_last_of('.');
-			string filetype;
+			string filetype = URI_str.substr(pos+1);
 
-			if(0)//string::npos != pos && string::npos != URI_str[pos+1])
+			map<string, string>::const_iterator itr = mimetypes.find(filetype);
+//			if(string::npos != pos && string::npos != URI_str[pos+1] && 
+			if(mimetypes.end() != itr)
 			{
-				filetype = URI_str.substr(pos+1);
+				filetype.assign(itr->second);
 			}else{
 				filetype.assign("text/html");
 			}
 
-			const int buffsize = 256;
+			clog << "[mimetype] " << itr->second << endl;
+
+			const int buffsize = 1024;
 			char buffer[buffsize];
 			stringstream response;
-			response << "HTTP/1.1 200 OK\nServer: " << appname << "\nContent-Type: " << filetype << "\nTransfer-Encoding: chunked\n\n" << setbase(16);
-
+		response << "HTTP/1.1 200 OK\r\nServer: " << appname << "\r\nContent-Type: " << filetype << setbase(16) << "\r\nTransfer-Encoding: chunked\r\n\r\n" << flush;
+			
 			while(0 <= (ret = unzReadCurrentFile(zipfile, buffer, buffsize)))
 			{
-				response << ret << "\n";
-				response.write(buffer, ret);
-				response << "\n";
+				if(0 == ret)
+				{
+					//last chunk
+					response << ret << "\r\n\r\n" << flush;
+					success = true;
+				}else{
+					response << ret << "\r\n";
+					response.write(buffer, ret);
+					response << "\r\n" << flush;
+				}
 
-//				clog << response.str() << endl;
+//				clog << response.str() << flush;
 
-				if(0 < send(client_socket, response.str().data(), response.str().length(), 0))
+				if(-1 != (ret = send(client_socket, response.str().data(), response.str().length(), 0)))
 				{
 					chunks++;
-					success = true;
-					if(ret == 0){ clog << C_ok << "[Last chunk sent]" << C_reset << endl;  break; }
+					if(success) break;
 				}else{ 
-					cerr << C_err << "[Sending response to client failed] " << C_reset << endl; 
-					perror("send"); 
+					perror("[send] "); 
 					success = false;
 					break;
 				}
 				response.str(string()); //empty response stream
 			}//while else cerr << C_err  << "[unzRead failed: " << ret << " ]" << C_reset << endl;
 			
-			unzCloseCurrentFile(zipfile);
+			if(UNZ_CRCERROR == unzCloseCurrentFile(zipfile)) success = false;
+
 		}else cerr << C_err << "[unzOpen failed]" << C_reset << endl;
 	}else cerr << C_err << "[Reading zip's file info failed]" << C_reset << endl;
 
 	if(success)
 	{
 		clog << C_ok << "[" << chunks << " chunks]" << C_reset << endl;
-	}else send_NOT_FOUND(URI_str);
+	}else{
+		cerr << "[unzip error] " << get_unzip_error(ret) << endl;
+		send_NOT_FOUND(URI_str);
+	}
 
 	return success;
 }
@@ -195,9 +235,9 @@ bool parse_request(void)
 
 	string token;
 	ss >> token;
-	if(!token.compare("GET") || !token.compare("HEADER"))
+	if(!token.compare("GET"))// || !token.compare("HEADER"))
 	{
-		clog << C_ok << "[Found] " << token << C_reset << endl;
+//		clog << C_ok << "[Found] " << token << C_reset << endl;
 		ss >> URI_str;
 		if(0 < URI_str.length())
 		{
@@ -207,18 +247,21 @@ bool parse_request(void)
 	}
 
 	clog << C_warn << "[Not a GET request] " << token << C_reset << endl;
+
+//BAD REQUEST
 	return false;
 }
 
 bool get_request(void)
 {
+	clog << "[Getting request]" << endl;
 	char buffer[buffer_size];
 	int ret;
-	if(0 < (ret = recv(client_socket, buffer, buffer_size, 0)))
+	if(0 < (ret = recv(client_socket, buffer, buffer_size, 0)))//ide kell a NO_WAIT mert az utolsó send után nem zárja a kapcsolatot
 	{
 		request_str.assign(buffer, ret);
-		clog << C_warn << "[Request start] " << endl << request_str << endl << "[Request end]" << C_reset << endl;
-
+//		clog << endl << C_warn << "[Request start] " << endl << request_str << endl << "[Request end]" << C_reset << endl;
+		clog << "[Got it]" << endl;
 		return true;
 
 	}else if(ret < 0)
@@ -234,13 +277,15 @@ bool find_file(void)
 	if(NULL != zipfile)
 	{
 		clog << C_ok << "[Searching zip for] " << URI_str.c_str()+1 << C_reset << endl;
+		unzGoToFirstFile(zipfile);
 		if( UNZ_OK == unzLocateFile(zipfile, URI_str.c_str()+1, 2))
 		{
+			clog << C_warn << "[Found] " << URI_str.c_str()+1 << C_reset << endl;
 			return true;
 		}
 	}
 
-	clog << C_warn << "[Not found] " << URI_str << C_reset << endl;
+	clog << C_warn << "[Not found] " << URI_str.c_str()+1 << C_reset << endl;
 	return false;
 }
 
@@ -281,7 +326,14 @@ void webserv(void)
 	clog << C_warn << "[Socket closed]" << C_reset << endl;
 }
 
-
+//mimetypes.cpp-be valo
+void list_mimetypes(void)
+{
+	for(map<string, string>::const_iterator  itr = mimetypes.begin(); itr != mimetypes.end(); itr++)
+	{
+		cout << itr->first << " " << itr->second << endl;
+	}
+}
 
 int main(int argc, char **argv)
 {
@@ -308,7 +360,7 @@ int main(int argc, char **argv)
 
 		if(0 <= bind(listen_socket, (struct sockaddr *) &server_address, sizeof(server_address)))
 		{
-			if(0 == listen(listen_socket, 10))//a kapcsolodasokra figyel a 2. param a varolista hosszat adja meg
+			if(0 == listen(listen_socket, 1))//a kapcsolodasokra figyel a 2. param a varolista hosszat adja meg
 			{
 				while(1)
 				{
@@ -323,21 +375,15 @@ int main(int argc, char **argv)
 						}
 */
 						webserv();
-					}else{
-						perror("[ accept() ] ");
-					}
+					}else perror("[ accept() ] "); 
 				}//while
-			}else{
-				perror("[ listen() ]");
-			}
-		}else{
-			perror("[ bind() ]");
-		}
+			}else perror("[ listen() ] ");
+		}else perror("[ bind() ] "); 
 	}
 
 	close(listen_socket);
 
-	clog << endl << "[Server stopped]" << endl;
+	clog << endl << "[Server stopped ]" << endl;
 
 return 0;
 }
