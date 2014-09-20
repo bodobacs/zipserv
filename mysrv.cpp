@@ -15,6 +15,8 @@ Mivel marha nehéz olyan értelmezőt írni ami minden http kérést hatékonyan
 #include <cstring>
 #include <sstream>
 #include <iomanip>
+#include <unistd.h>
+
 
 #include "../zlib/contrib/minizip/unzip.h"
 #include "mimetypes.h"
@@ -100,7 +102,7 @@ bool open_zipfile(void)
 	{
 		return true;	
 	}else{
-		cerr << C_err << "[unzOpen failed]" << C_reset << endl;
+		cerr << "[unzOpen failed]" << endl;
 	}
 	return false;
 }
@@ -166,16 +168,16 @@ bool send_file(void)
 					break;
 				}
 				response.str(string()); //empty response stream
-			}//while else cerr << C_err  << "[unzRead failed: " << ret << " ]" << C_reset << endl;
+			}//while else cerr  << "[unzRead failed: " << ret << " ]" << endl;
 			
 			if(UNZ_CRCERROR == unzCloseCurrentFile(zipfile)) success = false;
 
-		}else cerr << C_err << "[unzOpen failed]" << C_reset << endl;
-	}else cerr << C_err << "[Reading zip's file info failed]" << C_reset << endl;
+		}else cerr << "[unzOpen failed]" << endl;
+	}else cerr << "[Reading zip's file info failed]" << endl;
 
 	if(success)
 	{
-		clog << C_ok << "[" << chunks << " chunks]" << C_reset << endl;
+		clog << "[" << chunks << " chunks]" << endl;
 	}else{
 		cerr << "[unzip error] " << get_unzip_error(ret) << endl;
 		send_NOT_FOUND(URI_str);
@@ -237,7 +239,7 @@ bool parse_request(void)
 	ss >> token;
 	if(!token.compare("GET"))// || !token.compare("HEADER"))
 	{
-//		clog << C_ok << "[Found] " << token << C_reset << endl;
+//		clog << "[Found] " << token << endl;
 		ss >> URI_str;
 		if(0 < URI_str.length())
 		{
@@ -246,7 +248,7 @@ bool parse_request(void)
 		}
 	}
 
-	clog << C_warn << "[Not a GET request] " << token << C_reset << endl;
+	clog << "[Not a GET request] " << token << endl;
 
 //BAD REQUEST
 	return false;
@@ -254,76 +256,70 @@ bool parse_request(void)
 
 bool get_request(void)
 {
-	clog << "[Getting request]" << endl;
-	char buffer[buffer_size];
-	int ret;
-	if(0 < (ret = recv(client_socket, buffer, buffer_size, 0)))//ide kell a NO_WAIT mert az utolsó send után nem zárja a kapcsolatot
-	{
-		request_str.assign(buffer, ret);
-//		clog << endl << C_warn << "[Request start] " << endl << request_str << endl << "[Request end]" << C_reset << endl;
-		clog << "[Got it]" << endl;
-		return true;
-
-	}else if(ret < 0)
-	{
-		perror("recv");
-	}
-	
-	return false;
 }
 
 bool find_file(void)
 {
 	if(NULL != zipfile)
 	{
-		clog << C_ok << "[Searching zip for] " << URI_str.c_str()+1 << C_reset << endl;
+		clog << "[Searching zip for] " << URI_str.c_str()+1 << endl;
 		unzGoToFirstFile(zipfile);
 		if( UNZ_OK == unzLocateFile(zipfile, URI_str.c_str()+1, 2))
 		{
-			clog << C_warn << "[Found] " << URI_str.c_str()+1 << C_reset << endl;
+			clog << "[Found] " << URI_str.c_str()+1 << endl;
 			return true;
 		}
 	}
 
-	clog << C_warn << "[Not found] " << URI_str.c_str()+1 << C_reset << endl;
+	clog << "[Not found] " << URI_str.c_str()+1 << endl;
 	return false;
 }
 
-void webserv(void)
+bool webserv(void)
 {
-	clog << endl << C_ok << "[Socket ready, serving client]" << C_reset << endl;
+	clog << endl << "[Socket ready, serving client]" << endl;
 
-//	read_all_request();
-	open_zipfile();
+	clog << "[Getting request]" << endl;
+	char buffer[buffer_size];
+	int ret;
 
-	while(get_request() && parse_request())
+	if(0 < (ret = recv(client_socket, buffer, buffer_size, 0)))
 	{
-		clog << C_warn << "[RESPONSE START]" << C_reset << endl;
-		if(find_file())
+		request_str.assign(buffer, ret);
+//		clog << endl << "[Request start] " << endl << request_str << endl << "[Request end]" << endl;
+
+		if(parse_request())
 		{
-			send_file();
-		}else{
-			if(!URI_str.compare("/"))
+			clog << "[RESPONSE START]" << endl;
+			if(find_file())
 			{
-				URI_str.assign("/index.html");
-				if(find_file())
-				{
-					send_file();
-				}else{
-					send_file_list();
-				}
+				send_file();
 			}else{
-				send_NOT_FOUND(URI_str);
+				if(!URI_str.compare("/"))
+				{
+					URI_str.assign("/index.html");
+					if(find_file())
+					{
+						send_file();
+					}else{
+						send_file_list();
+					}
+				}else{
+					send_NOT_FOUND(URI_str);
+				}
 			}
+
+			return true;
+			clog << "[RESPONSE END]" << endl;
+	//		sleep(1); //EZ NAGYON KELL, ki kell találni valami jobbat helyette
 		}
-		clog << C_warn << "[RESPONSE END]" << C_reset << endl;
+
+	}else if(ret == -1)
+	{
+		perror("recv");
 	}
-	close_zipfile();
 
-	sleep(1); //EZ NAGYON KELL, ki kell találni valami jobbat helyette
-	close(client_socket);
-
-	clog << C_warn << "[Socket closed]" << C_reset << endl;
+	return false;
 }
 
 //mimetypes.cpp-be valo
@@ -337,7 +333,10 @@ void list_mimetypes(void)
 
 int main(int argc, char **argv)
 {
-	clog << C_ok << "[zipserv started]" << C_reset << endl;
+	clog << "[zipserv started]" << endl;
+
+	open_zipfile();
+
 // demon()?
 //szerver listener socket
 	int listen_socket; //ezen jonnek a keresek
@@ -349,41 +348,84 @@ int main(int argc, char **argv)
 	server_address.sin_port = htons(listen_port);
 	server_address.sin_addr.s_addr = htonl(INADDR_LOOPBACK);//INADDR_ANY
 
-//amikor egy kapcsolat letrejon csinal egy childprocess-t es annak adja at a kliens socketet
-//client socket
-//	int client_socket;
-	struct sockaddr_in client_address;
-	socklen_t length;
-
 	if(0 <= (listen_socket = socket(AF_INET, SOCK_STREAM, 0))) //domain, type, protocol(tipusonkent egy szokott lenni)
 	{
 
 		if(0 <= bind(listen_socket, (struct sockaddr *) &server_address, sizeof(server_address)))
 		{
-			if(0 == listen(listen_socket, 1))//a kapcsolodasokra figyel a 2. param a varolista hosszat adja meg
+			if(0 == listen(listen_socket, 10))//a kapcsolodasokra figyel a 2. param a varolista hosszat adja meg
 			{
-				while(1)
-				{
-					if(0 <= (client_socket = accept(listen_socket, (struct sockaddr *)&client_address, &length)))
-					{
-						cout << endl << "[New client connected] " << ntohl(client_address.sin_port) << endl;
+				//add listen_socket
+				fd_set	open_sockets;
+				FD_ZERO(&open_sockets);
 
-						linger lin; lin.l_onoff = 1; lin.l_linger = 5;
-					/*	if(setsockopt(client_socket, SOL_SOCKET, SO_LINGER, (void*)&lin, sizeof(lin)))
+				FD_SET(listen_socket, &open_sockets);
+				int greatest_socket = listen_socket;
+				
+				bool run = true; 
+				while(run)
+				{
+					fd_set read_fds;
+					FD_ZERO(&read_fds);
+					read_fds = open_sockets;
+
+					struct timeval tv;
+					tv.tv_sec = 2; tv.tv_usec = 0;
+
+					int r = select(greatest_socket+1, &read_fds, NULL, NULL, NULL);
+					if(r > 0)
+					{//there sockets to check
+						for(int i=0; i <= greatest_socket; i++)
 						{
-							perror("setsockopt");
-						}
-*/
-						webserv();
-					}else perror("[ accept() ] "); 
+							if(!(FD_ISSET(i, &read_fds))) continue; //this i is not in the set 
+							if(i == listen_socket)
+							{//new connection
+
+//								struct sockaddr_in client_address;
+//								socklen_t length;
+//								int new_socket = accept(listen_socket, (struct sockaddr *)&client_address, &length);
+
+								int new_socket = accept(listen_socket, NULL, NULL);
+								if(-1 != new_socket)
+								{
+									cout << "[New connection created]" << endl;
+									FD_SET(new_socket, &open_sockets);
+
+									greatest_socket = new_socket;
+
+									//linger lin; lin.l_onoff = 1; lin.l_linger = 5; if(setsockopt(client_socket, SOL_SOCKET, SO_LINGER, (void*)&lin, sizeof(lin))) perror("setsockopt");
+
+								}else perror("[ accept() ] "); 
+
+							}else{
+								client_socket = i;
+								if(!webserv()) //socket state changed
+								{
+									clog << "[Closing socket] " << i << endl;
+									close(i);
+									FD_CLR(i, &open_sockets);
+								}
+							}//check socket
+						}//for
+					}else if(r == 0){//timeout
+						clog << "[Waiting ...]" << endl;
+					}else{
+						perror("select: ");
+						run = false;
+					}
+
 				}//while
 			}else perror("[ listen() ] ");
 		}else perror("[ bind() ] "); 
+
+		close(listen_socket);
 	}
 
-	close(listen_socket);
+	close_zipfile();
 
 	clog << endl << "[Server stopped ]" << endl;
 
 return 0;
 }
+
+
