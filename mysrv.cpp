@@ -15,18 +15,20 @@ Mivel marha nehéz olyan értelmezőt írni ami minden http kérést hatékonyan
 #include <cstring>
 #include <sstream>
 #include <iomanip>
-#include <unistd.h>
-
+#include <unistd.h> //select()
+#include <signal.h> //signal handler
 
 #include "../zlib/contrib/minizip/unzip.h"
 #include "mimetypes.h"
 
 using namespace std;
 
-const string C_err  ("\x1B[31m");
-const string C_ok   ("\x1B[32m");
-const string C_warn ("\x1B[33m");
-const string C_reset("\033[0m" );
+const string APPNAME_str("zipserv-dev");
+
+const string COLOR_ERROR	("\x1B[31m");
+const string COLOR_OK		("\x1B[32m");
+const string COLOR_WARNING	("\x1B[33m");
+const string COLOR_RESET	("\033[0m" );
 
 const string NOT_FOUND("NOT_FOUND");
 
@@ -43,6 +45,7 @@ const std::map<int, std::string> unzip_return_codes = {
 
 };
 
+//translates unzip return values to string
 const string &get_unzip_error(int code)
 {
 	const map<int, string>::const_iterator itr = unzip_return_codes.find(code);
@@ -53,7 +56,6 @@ const string &get_unzip_error(int code)
 	return NOT_FOUND;
 }
 
-const string appname("zipserv-dev");
 
 //atmeneti valtozok
 
@@ -141,7 +143,7 @@ bool send_file(void)
 			const int buffsize = 1024;
 			char buffer[buffsize];
 			stringstream response;
-		response << "HTTP/1.1 200 OK\r\nServer: " << appname << "\r\nContent-Type: " << filetype << setbase(16) << "\r\nTransfer-Encoding: chunked\r\n\r\n" << flush;
+		response << "HTTP/1.1 200 OK\r\nServer: " << APPNAME_str << "\r\nContent-Type: " << filetype << setbase(16) << "\r\nTransfer-Encoding: chunked\r\n\r\n" << flush;
 			
 			while(0 <= (ret = unzReadCurrentFile(zipfile, buffer, buffsize)))
 			{
@@ -220,7 +222,7 @@ void send_file_list(void)
 	content << "</body></html>" << endl;
 	stringstream response;
 
-	response << "HTTP/1.1 200 OK\nServer: " << appname << "\nContent-Length: " << content.str().length() << "\nConnection: keep-alive\nContent-Type: html\n\n" << content.str() << flush;
+	response << "HTTP/1.1 200 OK\nServer: " << APPNAME_str << "\nContent-Length: " << content.str().length() << "\nConnection: keep-alive\nContent-Type: html\n\n" << content.str() << flush;
 
 	if(0 > send(client_socket, response.str().c_str(), response.str().length(), 0)) perror("send");
 	return;
@@ -331,9 +333,20 @@ void list_mimetypes(void)
 	}
 }
 
+bool run = true; 
+
+void signalhandler(int signum)
+{
+	cerr << COLOR_ERROR << "[Signal caught]: " << signum << endl;
+
+	run = false;
+}
+
 int main(int argc, char **argv)
 {
-	clog << "[zipserv started]" << endl;
+	clog << endl << "[zipserv started]" << endl << endl;
+
+	signal(SIGINT, signalhandler);
 
 	open_zipfile();
 
@@ -362,16 +375,16 @@ int main(int argc, char **argv)
 				FD_SET(listen_socket, &open_sockets);
 				int greatest_socket = listen_socket;
 				
-				bool run = true; 
 				while(run)
 				{
 					fd_set read_fds;
 					FD_ZERO(&read_fds);
 					read_fds = open_sockets;
 
-					struct timeval tv;
-					tv.tv_sec = 2; tv.tv_usec = 0;
+//					struct timeval tv;
+//					tv.tv_sec = 10; tv.tv_usec = 0;
 
+//					int r = select(greatest_socket+1, &read_fds, NULL, NULL, &tv);
 					int r = select(greatest_socket+1, &read_fds, NULL, NULL, NULL);
 					if(r > 0)
 					{//there sockets to check
@@ -423,9 +436,11 @@ int main(int argc, char **argv)
 
 	close_zipfile();
 
-	clog << endl << "[Server stopped ]" << endl;
+	cerr << COLOR_RESET << flush;
+	clog << COLOR_RESET << flush;
 
-return 0;
+	cout << endl << "[" << APPNAME_str << " stopped. Bye!]" << endl << endl;
+	return 0;
 }
 
 
