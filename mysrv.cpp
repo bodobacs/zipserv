@@ -60,7 +60,7 @@ const string &get_unzip_error(int code)
 //atmeneti valtozok
 
 //string zipname("../abs-guide.zip");
-string zipname("irwin.zip");
+string zipname("help.zip"); //by default opens the package shipped help/info site, faq, etc
 
 //-----------------
 const int buffer_size = 2048;//ennek elégnek kéne lennie, firefoxnak van 8kb
@@ -102,6 +102,7 @@ bool open_zipfile(void)
 	zipfile = unzOpen(zipname.c_str());
 	if(NULL != zipfile)
 	{
+		clog << "[" << zipname << " found and opened]" << endl;
 		return true;	
 	}else{
 		cerr << "[unzOpen failed]" << endl;
@@ -190,13 +191,16 @@ bool send_file(void)
 
 void send_file_list(void)
 {	
-	stringstream content;
-	content << "<html><header>File list</header><body>" << endl;
+	stringstream response;
+	response << "HTTP/1.1 200 OK\r\nServer: " << APPNAME_str << "\r\nContent-Type: text/html\r\n" << "Transfer-Encoding: chunked\r\n\r\n" << setbase(16) << flush;
 
-	if( NULL != zipfile)
+	stringstream content; content << "<html><header>File list</header><body><ol>" << endl;
+
+	if(NULL != zipfile)
 	{
 		int ret = unzGoToFirstFile(zipfile);
-		for(int f = 0; UNZ_OK == ret && f < 10000; f++)//10000 csak egy korlát
+		int f = 0;
+		for(; UNZ_OK == ret; f++)
 		{
 			unz_file_info file_info;
 			int filename_buffer_size = 1024;
@@ -207,24 +211,38 @@ void send_file_list(void)
 			{
 				content << "<li><a href=\"" << filename_buffer << "\"/>" << filename_buffer << "</li>" << endl;
 			}else{
-				if(!f) content << "<h1>Files not found in zip!</h1>" << endl;
+				if(!f) content << "<h1>Cannot read file info</h1>" << endl;
 				break;
-			} 
+			}
+
+			if(400 < content.str().length()) //be a bit bigger than a row
+			{
+				response << content.str().length() << "\r\n" << content.str() << "\r\n";
+				if(0 > send(client_socket, response.str().c_str(), response.str().length(), 0))
+					perror("send");
+
+				response.str(string());
+				content.str(string());
+			}
 
 			ret = unzGoToNextFile(zipfile);
 		}//for
+
+		if(!f)// first try is failure
+		{
+			content << "<h1>Cannot list zip!</h1>" << endl;
+		}else{
+			content << "<h3>" << f << " entries listed.</h3>" << endl;
+		}
 	}else{
-		content << "<h1>Cannot list zip!</h1>" << endl;
-		
-//		cerr << "unzGetGlobalInfo failed" << endl;
+		content << "<h1>Zip is not open!</h1>" << endl;
 	}
 
-	content << "</body></html>" << endl;
-	stringstream response;
+	content << "</ol></body></html>" << endl;
 
-	response << "HTTP/1.1 200 OK\nServer: " << APPNAME_str << "\nContent-Length: " << content.str().length() << "\nConnection: keep-alive\nContent-Type: html\n\n" << content.str() << flush;
-
+	response << content.str().length() << "\r\n" << content.str() << "\r\n0\r\n\r\n";
 	if(0 > send(client_socket, response.str().c_str(), response.str().length(), 0)) perror("send");
+
 	return;
 }
 
@@ -342,16 +360,8 @@ void signalhandler(int signum)
 	run = false;
 }
 
-int main(int argc, char **argv)
+void run_server(void)
 {
-	clog << endl << "[zipserv started]" << endl << endl;
-
-	signal(SIGINT, signalhandler);
-
-	open_zipfile();
-
-// demon()?
-//szerver listener socket
 	int listen_socket; //ezen jonnek a keresek
 	const int listen_port = 19000; //server portja
 	struct sockaddr_in server_address;
@@ -363,7 +373,6 @@ int main(int argc, char **argv)
 
 	if(0 <= (listen_socket = socket(AF_INET, SOCK_STREAM, 0))) //domain, type, protocol(tipusonkent egy szokott lenni)
 	{
-
 		if(0 <= bind(listen_socket, (struct sockaddr *) &server_address, sizeof(server_address)))
 		{
 			if(0 == listen(listen_socket, 10))//a kapcsolodasokra figyel a 2. param a varolista hosszat adja meg
@@ -376,7 +385,8 @@ int main(int argc, char **argv)
 				int greatest_socket = listen_socket;
 				
 				while(run)
-				{
+				{//loop
+
 					fd_set read_fds;
 					FD_ZERO(&read_fds);
 					read_fds = open_sockets;
@@ -388,9 +398,12 @@ int main(int argc, char **argv)
 					int r = select(greatest_socket+1, &read_fds, NULL, NULL, NULL);
 					if(r > 0)
 					{//there sockets to check
+						int last_valid_socket = -1;
 						for(int i=0; i <= greatest_socket; i++)
 						{
 							if(!(FD_ISSET(i, &read_fds))) continue; //this i is not in the set 
+							last_valid_socket = i;
+
 							if(i == listen_socket)
 							{//new connection
 
@@ -417,6 +430,8 @@ int main(int argc, char **argv)
 									clog << "[Closing socket] " << i << endl;
 									close(i);
 									FD_CLR(i, &open_sockets);
+
+									if(i == greatest_socket) greatest_socket = last_valid_socket;
 								}
 							}//check socket
 						}//for
@@ -428,13 +443,38 @@ int main(int argc, char **argv)
 					}
 
 				}//while
+
+				//cleanup
+				for(int i=0; i <= greatest_socket; i++)
+				{
+					if(!(FD_ISSET(i, &open_sockets)) && i == listen_socket) continue; //this i is not in the set 
+					FD_CLR(i, &open_sockets);
+					FD_ZERO(&open_sockets);
+				}
 			}else perror("[ listen() ] ");
 		}else perror("[ bind() ] "); 
 
 		close(listen_socket);
 	}
+}
 
-	close_zipfile();
+int main(int argc, char **argv)
+{
+	if(1 < argc)
+	{
+		zipname = argv[1];
+	}
+
+	clog << endl << "[zipserv started]" << endl << endl;
+
+	signal(SIGINT, signalhandler);
+
+	if(open_zipfile())
+	{
+		run_server();
+
+		close_zipfile();
+	}
 
 	cerr << COLOR_RESET << flush;
 	clog << COLOR_RESET << flush;
