@@ -30,7 +30,7 @@ const string COLOR_OK		("\x1B[32m");
 const string COLOR_WARNING	("\x1B[33m");
 const string COLOR_RESET	("\033[0m" );
 
-const string NOT_FOUND("NOT_FOUND");
+const string NOT_FOUND(" NOT_FOUND");
 
 const std::map<int, std::string> unzip_return_codes = {
 
@@ -83,7 +83,20 @@ void send_NOT_FOUND(const string &what)//ez jó
 	if(0 > send(client_socket, response.str().c_str(), response.str().length(), 0)) perror("Send message content");
 
 	clog << "[NOT FOUND 404 sent] " << endl;
-//	cout << response.str() << endl;
+}
+
+void send_http_error(const string &title, const string &message)//title has to be a valid http response
+{
+	stringstream content_ss;
+
+	content_ss << "<html><head>\n<title>" << title << "</title>\n</head><body>\n<h1>" << message << "\n</body></html>\n";
+
+	stringstream response;
+	response << "HTTP/1.1 " << title << "\nContent-Length: " << content_ss.str().length() << "\nConnection: close\nContent-Type: text/html\n\n" << content_ss.str();
+
+	if(0 > send(client_socket, response.str().c_str(), response.str().length(), 0)) perror("Send message content");
+
+	clog << "[error " << title << " sent] " << endl;
 }
 
 void close_zipfile(void)
@@ -112,8 +125,9 @@ bool open_zipfile(void)
 
 bool send_file(void)
 {
-	bool success = false;
 	clog << "[Sending file]" << endl;
+
+	bool lastchunk = false;
 
 	unz_file_info file_info;
 	int filename_buffer_size = 1024;
@@ -152,7 +166,7 @@ bool send_file(void)
 				{
 					//last chunk
 					response << ret << "\r\n\r\n" << flush;
-					success = true;
+					lastchunk = true;
 				}else{
 					response << ret << "\r\n";
 					response.write(buffer, ret);
@@ -164,37 +178,37 @@ bool send_file(void)
 				if(-1 != (ret = send(client_socket, response.str().data(), response.str().length(), 0)))
 				{
 					chunks++;
-					if(success) break;
+					if(lastchunk) break;
 				}else{ 
 					perror("[send] "); 
-					success = false;
+					lastchunk = false;
 					break;
 				}
 				response.str(string()); //empty response stream
 			}//while else cerr  << "[unzRead failed: " << ret << " ]" << endl;
 			
-			if(UNZ_CRCERROR == unzCloseCurrentFile(zipfile)) success = false;
+			if(UNZ_OK != unzCloseCurrentFile(zipfile))
+				cerr << __LINE__ << ": unzCloseCurrentFile" << get_unzip_error(ret) << endl;
+		}else cerr << __LINE__ << ": unzOpenCurrentFile" << get_unzip_error(ret) << endl;
+	}else cerr << __LINE__ << ": unzGetCurrentFileInfo" << get_unzip_error(ret) << endl;
 
-		}else cerr << "[unzOpen failed]" << endl;
-	}else cerr << "[Reading zip's file info failed]" << endl;
+	clog << "[" << chunks << " chunks sent]" << endl;
 
-	if(success)
-	{
-		clog << "[" << chunks << " chunks]" << endl;
-	}else{
-		cerr << "[unzip error] " << get_unzip_error(ret) << endl;
-		send_NOT_FOUND(URI_str);
-	}
+	if(lastchunk) clog << "[File sent]" << endl;
 
-	return success;
+	if(0 > ret){ send_NOT_FOUND(URI_str); return false; }
+
+	return lastchunk;
 }
 
 void send_file_list(void)
 {	
+	clog << "[Sending file list]" << endl;
+
 	stringstream response;
 	response << "HTTP/1.1 200 OK\r\nServer: " << APPNAME_str << "\r\nContent-Type: text/html\r\n" << "Transfer-Encoding: chunked\r\n\r\n" << setbase(16) << flush;
 
-	stringstream content; content << "<html><header>File list</header><body><ol>" << endl;
+	stringstream content; content << "<html><header><h1>Generated file list</h1></header><body><ol>" << endl;
 
 	if(NULL != zipfile)
 	{
@@ -209,7 +223,7 @@ void send_file_list(void)
 			ret = unzGetCurrentFileInfo(zipfile, &file_info, filename_buffer, filename_buffer_size, NULL, 0, NULL, 0);
 			if(UNZ_OK == ret)
 			{
-				content << "<li><a href=\"" << filename_buffer << "\"/>" << filename_buffer << "</li>" << endl;
+				content << "<li><a href=\"" << filename_buffer << "\"/>" << filename_buffer << "</a></li>" << endl;
 			}else{
 				if(!f) content << "<h1>Cannot read file info</h1>" << endl;
 				break;
@@ -270,12 +284,8 @@ bool parse_request(void)
 
 	clog << "[Not a GET request] " << token << endl;
 
-//BAD REQUEST
+//BAD REQUEST TODO
 	return false;
-}
-
-bool get_request(void)
-{
 }
 
 bool find_file(void)
@@ -311,23 +321,13 @@ bool webserv(void)
 		if(parse_request())
 		{
 			clog << "[RESPONSE START]" << endl;
-			if(find_file())
+
+			if(*(URI_str.crbegin()) == '/')
 			{
-				send_file();
-			}else{
-				if(!URI_str.compare("/"))
-				{
-					URI_str.assign("/index.html");
-					if(find_file())
-					{
-						send_file();
-					}else{
-						send_file_list();
-					}
-				}else{
-					send_NOT_FOUND(URI_str);
-				}
-			}
+				URI_str.append("index.html"); // root dir or DIR
+				if(find_file())	send_file(); else send_file_list();
+
+			}else if(find_file()) send_file(); else send_NOT_FOUND(URI_str);
 
 			return true;
 			clog << "[RESPONSE END]" << endl;
@@ -380,14 +380,16 @@ void run_server(void)
 				//add listen_socket
 				fd_set	open_sockets;
 				FD_ZERO(&open_sockets);
+				fd_set read_fds;
 
 				FD_SET(listen_socket, &open_sockets);
 				int greatest_socket = listen_socket;
 				
+				clog << endl << "[zipserv started]" << endl << endl;
+
 				while(run)
 				{//loop
 
-					fd_set read_fds;
 					FD_ZERO(&read_fds);
 					read_fds = open_sockets;
 
@@ -438,34 +440,42 @@ void run_server(void)
 					}else if(r == 0){//timeout
 						clog << "[Waiting ...]" << endl;
 					}else{
-						perror("select: ");
+						perror("select()");
 						run = false;
 					}
 
 				}//while
 
 				//cleanup
-				for(int i=0; i <= greatest_socket; i++)
+				clog << "[Closing sockets]" << endl;
+				FD_ZERO(&read_fds);
+				for(int i=greatest_socket; 0 <= i; i--)
 				{
-					if(!(FD_ISSET(i, &open_sockets)) && i == listen_socket) continue; //this i is not in the set 
+					if(!(FD_ISSET(i, &open_sockets))) continue; //this i is not in the set 
 					FD_CLR(i, &open_sockets);
-					FD_ZERO(&open_sockets);
-				}
-			}else perror("[ listen() ] ");
-		}else perror("[ bind() ] "); 
+					shutdown(i, 2);
+					close(i);
 
-		close(listen_socket);
-	}
+					clog << "[Closing socket] " << i << endl;
+				}
+				FD_ZERO(&open_sockets);
+			}else cerr << "listen()" << strerror(errno) << endl;
+		}else cerr << "bind()" << strerror(errno) << endl;
+
+		if(run){ shutdown(listen_socket, 2); close(listen_socket); } //initialization error
+
+	}else cerr << "socket()" << strerror(errno) << endl;
+	clog << "[Server closed]" << endl;
 }
 
 int main(int argc, char **argv)
 {
+	cout << APPNAME_str << " Built " << __DATE__ << " " << __TIME__ << endl;
 	if(1 < argc)
 	{
 		zipname = argv[1];
 	}
 
-	clog << endl << "[zipserv started]" << endl << endl;
 
 	signal(SIGINT, signalhandler);
 
