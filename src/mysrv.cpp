@@ -18,10 +18,12 @@ Mivel marha nehéz olyan értelmezőt írni ami minden http kérést hatékonyan
 #include <unistd.h> //select()
 #include <signal.h> //signal handler
 
-#include "../zlib/contrib/minizip/unzip.h"
 #include "mimetypes.h"
+#include "minizip/unzip.h"
 
 using namespace std;
+
+int listen_port = 19000; //server portja
 
 const string APPNAME_str("zipserv-dev");
 
@@ -34,16 +36,17 @@ const string NOT_FOUND(" NOT_FOUND");
 
 const std::map<int, std::string> unzip_return_codes = {
 
-{ UNZ_OK, "UNZ_OK" },
-{ UNZ_END_OF_LIST_OF_FILE, "UNZ_END_OF_LIST_OF_FILE" },
-{ UNZ_ERRNO, "UNZ_ERRNO" },
-{ UNZ_EOF,"UNZ_EOF" },
-{ UNZ_PARAMERROR, "UNZ_PARAMERROR" },
-{ UNZ_BADZIPFILE, "UNZ_BADZIPFILE" },
-{ UNZ_INTERNALERROR, "UNZ_INTERNALERROR"},
-{ UNZ_CRCERROR, "UNZ_CRCERROR"}
+{ UNZ_OK, 					"UNZ_OK" },
+{ UNZ_END_OF_LIST_OF_FILE, 	"UNZ_END_OF_LIST_OF_FILE" },
+{ UNZ_ERRNO, 				"UNZ_ERRNO" },
+{ UNZ_EOF,					"UNZ_EOF" },
+{ UNZ_PARAMERROR, 			"UNZ_PARAMERROR" },
+{ UNZ_BADZIPFILE, 			"UNZ_BADZIPFILE" },
+{ UNZ_INTERNALERROR, 		"UNZ_INTERNALERROR"},
+{ UNZ_CRCERROR, 			"UNZ_CRCERROR"}
 
 };
+
 
 //translates unzip return values to string
 const string &get_unzip_error(int code)
@@ -363,7 +366,6 @@ void signalhandler(int signum)
 void run_server(void)
 {
 	int listen_socket; //ezen jonnek a keresek
-	const int listen_port = 19000; //server portja
 	struct sockaddr_in server_address;
 
 	//szerver cimenek beallitasa
@@ -468,16 +470,32 @@ void run_server(void)
 	clog << "[Server closed]" << endl;
 }
 
+stringstream newcout;
+
+#ifndef __ANDROID__
+
 int main(int argc, char **argv)
 {
-	cout << APPNAME_str << " Built " << __DATE__ << " " << __TIME__ << endl;
 	if(1 < argc)
 	{
 		zipname = argv[1];
 	}
 
+	signal(SIGINT, signalhandler); //that little shit makes an undefined reference in main error on NDK
 
-	signal(SIGINT, signalhandler);
+#else
+
+#include <jni.h>
+
+int mymain(void)
+{
+
+#endif
+
+	streambuf *oldcoutsbuf = cout.rdbuf(newcout.rdbuf());
+
+	cout << APPNAME_str << " Built on " __DATE__  " " __TIME__ << endl;
+
 
 	if(open_zipfile())
 	{
@@ -490,7 +508,39 @@ int main(int argc, char **argv)
 	clog << COLOR_RESET << flush;
 
 	cout << endl << "[" << APPNAME_str << " stopped. Bye!]" << endl << endl;
+
+	cout.rdbuf(oldcoutsbuf);
+
 	return 0;
 }
 
 
+const char *check_shared_lib(void)
+{
+	return newcout.str().c_str();
+}
+
+
+#ifdef __ANDROID__
+
+extern "C" {
+
+JNIEXPORT jstring Java_com_example_hellojni_HelloJni_stringFromJNI( JNIEnv* env, jobject thiz )
+{
+	mymain();
+
+	//  return (*env)->NewStringUTF(env, "Hello from JNI !  Compiled with ABI "); //original
+	return (env)->NewStringUTF(check_shared_lib()); // "Hello from JNI !  Compiled with ABI " ABI ".");
+}
+
+JNIEXPORT jstring Java_com_example_hellojni_HelloJni_myJNIFunc( JNIEnv* env, jobject thiz )
+{
+	mymain();
+
+	return (env)->NewStringUTF("- Saját függvény -"); // "Hello from JNI !  Compiled with ABI " ABI ".");
+}
+
+
+}//extern "C"
+
+#endif
