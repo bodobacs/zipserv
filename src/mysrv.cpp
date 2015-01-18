@@ -27,13 +27,9 @@ int listen_port = 19000; //server portja
 
 const string APPNAME_str("zipserv-dev");
 
-const string COLOR_ERROR	("\x1B[31m");
-const string COLOR_OK		("\x1B[32m");
-const string COLOR_WARNING	("\x1B[33m");
-const string COLOR_RESET	("\033[0m" );
-
 const string NOT_FOUND(" NOT_FOUND");
 
+// minizip/unzip return messages
 const std::map<int, std::string> unzip_return_codes = {
 
 { UNZ_OK, 					"UNZ_OK" },
@@ -47,7 +43,6 @@ const std::map<int, std::string> unzip_return_codes = {
 
 };
 
-
 //translates unzip return values to string
 const string &get_unzip_error(int code)
 {
@@ -55,7 +50,7 @@ const string &get_unzip_error(int code)
 
 	if(unzip_return_codes.end() != itr) return (itr->second);
 
-	cerr << "unzip code not found" << endl;
+	cerr << "Unzip: return code not found" << endl;
 	return NOT_FOUND;
 }
 
@@ -358,7 +353,7 @@ bool run = true;
 
 void signalhandler(int signum)
 {
-	cerr << COLOR_ERROR << "[Signal caught]: " << signum << endl;
+	cerr << "[Signal caught]: " << signum << endl;
 
 	run = false;
 }
@@ -461,16 +456,17 @@ void run_server(void)
 					clog << "[Closing socket] " << i << endl;
 				}
 				FD_ZERO(&open_sockets);
-			}else cerr << "listen()" << strerror(errno) << endl;
-		}else cerr << "bind()" << strerror(errno) << endl;
+
+			}else cerr << "listen(): " << strerror(errno) << endl;
+		}else cerr << "bind(): " << strerror(errno) << endl;
 
 		if(run){ shutdown(listen_socket, 2); close(listen_socket); } //initialization error
 
-	}else cerr << "socket()" << strerror(errno) << endl;
+	}else cerr << "socket(): " << strerror(errno) << endl;
 	clog << "[Server closed]" << endl;
 }
 
-stringstream newcout;
+//stringstream newcout;
 
 #ifndef __ANDROID__
 
@@ -486,60 +482,73 @@ int main(int argc, char **argv)
 #else
 
 #include <jni.h>
+#include <android/log.h>
 
 int mymain(void)
 {
 
 #endif
 
-	streambuf *oldcoutsbuf = cout.rdbuf(newcout.rdbuf());
+//	streambuf *oldcoutsbuf = cout.rdbuf(newcout.rdbuf());
 
 	cout << APPNAME_str << " Built on " __DATE__  " " __TIME__ << endl;
 
 
 	if(open_zipfile())
 	{
-		run_server();
+	//	run_server();
 
 		close_zipfile();
 	}
 
-	cerr << COLOR_RESET << flush;
-	clog << COLOR_RESET << flush;
-
 	cout << endl << "[" << APPNAME_str << " stopped. Bye!]" << endl << endl;
 
-	cout.rdbuf(oldcoutsbuf);
+//	cout.rdbuf(oldcoutsbuf);
 
 	return 0;
 }
 
-
+/*
 const char *check_shared_lib(void)
 {
 	return newcout.str().c_str();
 }
-
+*/
 
 #ifdef __ANDROID__
 
 extern "C" {
 
-JNIEXPORT jstring Java_com_example_hellojni_HelloJni_stringFromJNI( JNIEnv* env, jobject thiz )
+static void myJNIFunc(JNIEnv* env, jclass clazz)
 {
 	mymain();
-
-	//  return (*env)->NewStringUTF(env, "Hello from JNI !  Compiled with ABI "); //original
-	return (env)->NewStringUTF(check_shared_lib()); // "Hello from JNI !  Compiled with ABI " ABI ".");
 }
 
-JNIEXPORT jstring Java_com_example_hellojni_HelloJni_myJNIFunc( JNIEnv* env, jobject thiz )
+const int method_table_size = 1;
+
+static JNINativeMethod method_table[] = {
+	{ "myJNIFunc", "()V", (void *)myJNIFunc }
+};
+
+jint JNI_OnLoad(JavaVM* vm, void* reserved)
 {
-	mymain();
-
-	return (env)->NewStringUTF("- Saját függvény -"); // "Hello from JNI !  Compiled with ABI " ABI ".");
+    JNIEnv* env;
+    if (vm->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION_1_6) != JNI_OK)
+    {
+//		LOGI("JNI INIT");
+		return JNI_ERR;
+	}else{
+		jclass clazz = (env)->FindClass("com/example/hellojni/MyService");
+		if (clazz) {
+			jint ret = (env)->RegisterNatives(clazz, method_table, method_table_size);
+			(env)->DeleteLocalRef(clazz);
+			return ret == 0 ? JNI_VERSION_1_6 : JNI_ERR;
+		}else{
+			return JNI_ERR;
+    	}
+	}
+    return JNI_VERSION_1_6;
 }
-
 
 }//extern "C"
 

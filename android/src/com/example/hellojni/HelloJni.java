@@ -16,9 +16,22 @@
 package com.example.hellojni;
 
 import android.app.Activity;
-import android.widget.TextView;
+//import android.widget.TextView;
 import android.os.Bundle;
 import android.util.Log;
+
+//import android.app.PendingIntent;
+import android.content.Intent;
+import android.view.View;
+import android.os.Bundle;
+//import android.support.v4.app.NotificationCompat; // STATIKUS KONYVTÁR, be kell másolni az sdk-ból!
+//import android.app.NotificationManager; 
+//import android.app.Notification; 
+//import android.util.Log; 
+import android.widget.Button;
+
+import android.app.Service;
+import android.os.IBinder;
 
 public class HelloJni extends Activity
 {
@@ -29,46 +42,41 @@ public class HelloJni extends Activity
     {
         super.onCreate(savedInstanceState);
 
+        setContentView(R.layout.main);
+
         /* Create a TextView and set its content.
          * the text is retrieved by calling a native
          * function.
          */
-		Log.d(TAG,"-------------- onCreate 1 ------------");
+/*		Log.d(TAG,"-------------- onCreate 1 ------------");
         TextView  tv = new TextView(this);
 		String message;
 		message = stringFromJNI() + myJNIFunc();
 
         tv.setText(message);
-        setContentView(tv);
 
-		Log.d(TAG,"-------------- onCreate 2 ------------");
+		Log.d(TAG,"-------------- onCreate 2 ------------");*/
     }
 
-    /* A native method that is implemented by the
-     * 'hello-jni' native library, which is packaged
-     * with this application.
-     */
-    public native String  stringFromJNI();
-    public native String  myJNIFunc();
+	public void onBumm(View v)
+	{
+		Log.d(TAG, "bumm start");
 
-    /* This is another native method declaration that is *not*
-     * implemented by 'hello-jni'. This is simply to show that
-     * you can declare as many native methods in your Java code
-     * as you want, their implementation is searched in the
-     * currently loaded native libraries only the first time
-     * you call them.
-     *
-     * Trying to call this function will result in a
-     * java.lang.UnsatisfiedLinkError exception !
-     */
-    public native String  unimplementedStringFromJNI();
+		startService(new Intent(this, MyService.class));
 
-    /* this is used to load the 'hello-jni' library on application
-     * startup. The library has already been unpacked into
-     * /data/data/com.example.hellojni/lib/libhello-jni.so at
-     * installation time by the package manager.
-     */
-    static {
-        System.loadLibrary("hello-jni");
-    }
+		Log.d(TAG, "bumm end");
+
+	}
+
+	public void switchService(View v)
+	{
+		Log.d(TAG, "switchService eleje");
+
+		Button b = (Button)findViewById(R.id.btn_switch);
+		b.setText("Gommba");
+
+		Log.d(TAG, "switchService vége");
+	}
+
 }
+
