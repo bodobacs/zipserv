@@ -466,69 +466,48 @@ void run_server(void)
 	clog << "[Server closed]" << endl;
 }
 
-//stringstream newcout;
-
-#ifndef __ANDROID__
-
-int main(int argc, char **argv)
-{
-	if(1 < argc)
-	{
-		zipname = argv[1];
-	}
-
-	signal(SIGINT, signalhandler); //that little shit makes an undefined reference in main error on NDK
-
-#else
+#ifdef __ANDROID__
+/****************************************** ANDROID specific functions *************************************************/
 
 #include <jni.h>
 #include <android/log.h>
 
-int mymain(void)
+int main(void)
 {
-
-#endif
-
-//	streambuf *oldcoutsbuf = cout.rdbuf(newcout.rdbuf());
-
-	cout << APPNAME_str << " Built on " __DATE__  " " __TIME__ << endl;
-
 
 	if(open_zipfile())
 	{
-	//	run_server();
+		run_server();
 
 		close_zipfile();
 	}
 
-	cout << endl << "[" << APPNAME_str << " stopped. Bye!]" << endl << endl;
-
-//	cout.rdbuf(oldcoutsbuf);
-
 	return 0;
 }
-
-/*
-const char *check_shared_lib(void)
-{
-	return newcout.str().c_str();
-}
-*/
-
-#ifdef __ANDROID__
 
 extern "C" {
 
 static void myJNIFunc(JNIEnv* env, jclass clazz)
 {
-	mymain();
+	main();
 }
 
-const int method_table_size = 1;
+static void myJNICallJavaFunc(JNIEnv* env, jclass clazz)
+{
+	jmethodID jmid = env->GetStaticMethodID(clazz, "funcFromC", "()V");
+	if(jmid != 0)
+	{
+		env->CallStaticVoidMethod(clazz, jmid);
+	}
+}
+
+const int method_table_size = 2;
 
 static JNINativeMethod method_table[] = {
-	{ "myJNIFunc", "()V", (void *)myJNIFunc }
+	{ "myJNIFunc", "()V", (void *)myJNIFunc },
+	{ "myJNICallJavaFunc", "()V", (void *)myJNICallJavaFunc }
 };
+
 
 jint JNI_OnLoad(JavaVM* vm, void* reserved)
 {
@@ -552,4 +531,32 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved)
 
 }//extern "C"
 
+#else 
+/****************************************** C specific functions *************************************************/
+
+int main(int argc, char **argv)
+{
+	if(1 < argc)
+	{
+		zipname = argv[1];
+	}
+
+	signal(SIGINT, signalhandler); //that little shit makes an undefined reference in main error on NDK
+
+	cout << APPNAME_str << " Built on " __DATE__  " " __TIME__ << endl;
+
+
+	if(open_zipfile())
+	{
+		run_server();
+
+		close_zipfile();
+	}
+
+	cout << endl << "[" << APPNAME_str << " stopped. Bye!]" << endl << endl;
+
+	return 0;
+}
+
 #endif
+

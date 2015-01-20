@@ -19,7 +19,7 @@ import android.os.ConditionVariable;
 
 public class MyService extends Service
 {
-	String TAG = "HelloJni";
+	static String TAG = "HelloJni";
 	private int notifId = 1;
 	private final int UNIQE_NOTI_ID = 13;
 
@@ -110,6 +110,8 @@ public class MyService extends Service
 				
 				myJNIFunc();
 
+				myJNICallJavaFunc();
+
 //				mCond.block(1000);//3*
 //			}
 
@@ -134,11 +136,17 @@ public class MyService extends Service
 		natStrCout += "fasz javasok";
 		Log.d(TAG, natStrCout);
 	}
+	
+	static public void funcFromC()
+	{
+		Log.d(TAG, "**************** Called from C++ *******************");
+	}
 
-   public static native void myJNIFunc();
+	public static native void myJNIFunc();
+	public static native void myJNICallJavaFunc();
 
-   static {
-        System.loadLibrary("hello-jni");
-    }
+	static {
+		System.loadLibrary("hello-jni");
+	}
 }
 
