@@ -114,10 +114,12 @@ bool open_zipfile(void)
 	if(NULL != zipfile)
 	{
 		clog << "[" << zipname << " found and opened]" << endl;
+//ANDROID sikerult betolteni
 		return true;	
-	}else{
-		cerr << "[unzOpen failed]" << endl;
 	}
+
+//ANDROID nem sikerult betolteni
+	cerr << "[unzOpen failed]" << endl;
 	return false;
 }
 
@@ -329,7 +331,7 @@ bool webserv(void)
 
 			return true;
 			clog << "[RESPONSE END]" << endl;
-	//		sleep(1); //EZ NAGYON KELL, ki kell találni valami jobbat helyette
+	//		sleep(1); //select használata előttig ez NAGYON KELLett
 		}
 
 	}else if(ret == -1)
@@ -360,6 +362,8 @@ void signalhandler(int signum)
 
 void run_server(void)
 {
+	bool ret = false;
+
 	int listen_socket; //ezen jonnek a keresek
 	struct sockaddr_in server_address;
 
@@ -372,6 +376,7 @@ void run_server(void)
 	{
 		if(0 <= bind(listen_socket, (struct sockaddr *) &server_address, sizeof(server_address)))
 		{
+			//ANDROID itt lehetne egy sikeres inicializalas, listening uzenet
 			if(0 == listen(listen_socket, 10))//a kapcsolodasokra figyel a 2. param a varolista hosszat adja meg
 			{
 				//add listen_socket
@@ -424,7 +429,7 @@ void run_server(void)
 
 							}else{
 								client_socket = i;
-								if(!webserv()) //socket state changed
+								if(!webserv()) //socket state changed, try to serve or close
 								{
 									clog << "[Closing socket] " << i << endl;
 									close(i);
@@ -460,7 +465,7 @@ void run_server(void)
 			}else cerr << "listen(): " << strerror(errno) << endl;
 		}else cerr << "bind(): " << strerror(errno) << endl;
 
-		if(run){ shutdown(listen_socket, 2); close(listen_socket); } //initialization error
+		if(run){ shutdown(listen_socket, 2); close(listen_socket); }
 
 	}else cerr << "socket(): " << strerror(errno) << endl;
 	clog << "[Server closed]" << endl;
@@ -489,23 +494,46 @@ extern "C" {
 
 static void myJNIFunc(JNIEnv* env, jclass clazz)
 {
-	main();
+//	main();
 }
+
+const string TAG("mysrv.cpp");
 
 static void myJNICallJavaFunc(JNIEnv* env, jclass clazz)
 {
-	jmethodID jmid = env->GetStaticMethodID(clazz, "funcFromC", "()V");
+	__android_log_print(ANDROID_LOG_VERBOSE, TAG.c_str(), "The value of 1 + 1 is %d", 1+1);
+
+	string s = "Csak kezd kialakulni";
+	jmethodID jmid = env->GetStaticMethodID(clazz, "funcFromC", "(Ljava/lang/String;)V"); //ReleaseStringUTFChars
 	if(jmid != 0)
 	{
-		env->CallStaticVoidMethod(clazz, jmid);
+		__android_log_print(ANDROID_LOG_VERBOSE, TAG.c_str(), "NewString");
+
+		jstring jstr = env->NewStringUTF(s.c_str()); //ez utan nem kell Release?! Itt tudja, hogy miután visszatért a függvény, már nem kell. Akkor mi van, ha mashol is használni akarom, he?
+
+		__android_log_print(ANDROID_LOG_VERBOSE, TAG.c_str(), "CallStaticMethod");
+		env->CallStaticVoidMethod(clazz, jmid, jstr);
+
+		__android_log_print(ANDROID_LOG_VERBOSE, TAG.c_str(), "ReleaseString not called");
 	}
+}
+
+void myJNI_InitializeServer(JNIEnv *env, jclass clazz, jstring jstr_fn, jint ji)
+{
+	const char *cstr = env->GetStringUTFChars(jstr_fn, NULL); //Ez utan kell Release!? Mert itt nem tudja mikor lehet felszabadítani.
+	zipname.append(cstr); 
+
+	env->ReleaseStringUTFChars(jstr_fn, cstr);
+	
 }
 
 const int method_table_size = 2;
 
+//these can be called from java code + need declaration in java code
 static JNINativeMethod method_table[] = {
 	{ "myJNIFunc", "()V", (void *)myJNIFunc },
-	{ "myJNICallJavaFunc", "()V", (void *)myJNICallJavaFunc }
+	{ "myJNICallJavaFunc", "()V", (void *)myJNICallJavaFunc },
+	{ "myJNI_InitializeServer", "(Ljava/lang/String;I)V", (void *)myJNI_InitializeServer } //(String zip_fn, int nport);
 };
 
 
@@ -541,7 +569,7 @@ int main(int argc, char **argv)
 		zipname = argv[1];
 	}
 
-	signal(SIGINT, signalhandler); //that little shit makes an undefined reference in main error on NDK
+	signal(SIGINT, signalhandler); //that little shit makes an "undefined reference in main" error on NDK
 
 	cout << APPNAME_str << " Built on " __DATE__  " " __TIME__ << endl;
 

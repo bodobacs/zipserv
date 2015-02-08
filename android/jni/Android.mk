@@ -9,6 +9,6 @@ LOCAL_SRC_FILES := \
 		$(LOCAL_PATH)/mysrv.cpp
 
 LOCAL_C_INCLUDES := $(LOCAL_PATH)/minizip/
-LOCAL_LDLIBS := -lz
+LOCAL_LDLIBS := -lz -llog
 include $(BUILD_SHARED_LIBRARY)
 

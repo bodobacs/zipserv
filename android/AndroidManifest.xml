@@ -15,7 +15,9 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-		 <service
+		<activity android:label="@string/app_name" android:name=".MyFileSel"/>
+		<uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+		<service
 				android:name=".MyService"
 				android:icon="@drawable/evilicon"
 				android:label="MyService" />

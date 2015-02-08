@@ -63,7 +63,10 @@ public class MyService extends Service
 	@Override
 	public int onStartCommand(Intent intent, int flags, int startId)
 	{
-	//    handleCommand(intent);// itt kell kitalálni mi van az átadott intent-el
+		// itt kell kitalálni mi van az átadott intent-el
+
+		if(intent.hasExtra("SelFile")) Log.d(TAG, "Selected ZIP: " + intent.getExtras().getString("SelFile"));
+		else Log.d(TAG, "NO EXTRA");
 
 		Intent notiIntent = new Intent();
 		PendingIntent pIntent = PendingIntent.getActivity(this, 0, notiIntent, 0);
@@ -137,11 +140,12 @@ public class MyService extends Service
 		Log.d(TAG, natStrCout);
 	}
 	
-	static public void funcFromC()
+	public static void funcFromC(String s)
 	{
-		Log.d(TAG, "**************** Called from C++ *******************");
+		Log.d(TAG, "Message from C++: " + s);
 	}
 
+	public static native void myJNI_InitializeServer(String zip_fn, int nport);
 	public static native void myJNIFunc();
 	public static native void myJNICallJavaFunc();
 

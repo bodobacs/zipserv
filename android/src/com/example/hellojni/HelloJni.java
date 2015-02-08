@@ -28,6 +28,7 @@ import android.os.Bundle;
 //import android.app.NotificationManager; 
 //import android.app.Notification; 
 //import android.util.Log; 
+import android.widget.TextView;
 import android.widget.Button;
 
 import android.app.Service;
@@ -62,7 +63,10 @@ public class HelloJni extends Activity
 	{
 		Log.d(TAG, "bumm start");
 
-		startService(new Intent(this, MyService.class));
+		Intent i = new Intent(this, MyService.class);
+		i.putExtra("SelFile", filename_selected);
+
+		startService(i);
 
 		Log.d(TAG, "bumm end");
 
@@ -76,6 +80,35 @@ public class HelloJni extends Activity
 		b.setText("Gommba");
 
 		Log.d(TAG, "switchService vége");
+	}
+
+	final int REQUEST_FILESELECTOR = 99;
+	String filename_selected;
+
+	public void onFileChoose(View v)
+	{// start file chooser activity
+		Intent intent = new Intent(this, MyFileSel.class);
+		startActivityForResult(intent, REQUEST_FILESELECTOR);
+	}
+
+	@Override
+	protected void onActivityResult(int req, int res, Intent i)//req: kérés azonosító, res: visszatérési kód
+	{
+		Log.d(TAG, "- - - onActivityResult " + "request: " + req + " result: " + res + " RESULT_OK: " + RESULT_OK);
+
+		if(RESULT_OK == res && REQUEST_FILESELECTOR == req)
+		{
+			if(i.hasExtra("SelFile")) //a file kivalsztasa utan megszerzi a file nevet
+			{
+				filename_selected = i.getExtras().getString("SelFile");
+				Log.d(TAG, "- - - Returned filename: " + filename_selected);
+				
+				((TextView)findViewById(R.id.tv_selectedfile)).setText(filename_selected);
+			}
+		}else{
+			//help.zip lehetne a backup megoldás
+			((TextView)findViewById(R.id.tv_selectedfile)).setText("No file");
+		}
 	}
 
 }
