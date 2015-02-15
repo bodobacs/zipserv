@@ -25,8 +25,8 @@ using namespace std;
 
 int listen_port = 19000; //server portja
 
+const string TAG("mysrv.cpp");
 const string APPNAME_str("zipserv-dev");
-
 const string NOT_FOUND(" NOT_FOUND");
 
 // minizip/unzip return messages
@@ -477,6 +477,8 @@ void run_server(void)
 #include <jni.h>
 #include <android/log.h>
 
+__android_log_print(ANDROID_LOG_VERBOSE, TAG.c_str(), "START myJNIFunc");
+
 int main(void)
 {
 
@@ -492,16 +494,15 @@ int main(void)
 
 extern "C" {
 
+
 static void myJNIFunc(JNIEnv* env, jclass clazz)
 {
-//	main();
+	__android_log_print(ANDROID_LOG_VERBOSE, TAG.c_str(), "START myJNIFunc");
 }
-
-const string TAG("mysrv.cpp");
 
 static void myJNICallJavaFunc(JNIEnv* env, jclass clazz)
 {
-	__android_log_print(ANDROID_LOG_VERBOSE, TAG.c_str(), "The value of 1 + 1 is %d", 1+1);
+	__android_log_print(ANDROID_LOG_VERBOSE, TAG.c_str(), "START myJNICallJavaFunc");
 
 	string s = "Csak kezd kialakulni";
 	jmethodID jmid = env->GetStaticMethodID(clazz, "funcFromC", "(Ljava/lang/String;)V"); //ReleaseStringUTFChars
@@ -518,22 +519,30 @@ static void myJNICallJavaFunc(JNIEnv* env, jclass clazz)
 	}
 }
 
-void myJNI_InitializeServer(JNIEnv *env, jclass clazz, jstring jstr_fn, jint ji)
+void cf_init_zipserver(JNIEnv *env, jclass clazz, jstring jstr_fn, jint ji)
 {
-	const char *cstr = env->GetStringUTFChars(jstr_fn, NULL); //Ez utan kell Release!? Mert itt nem tudja mikor lehet felszabadítani.
-	zipname.append(cstr); 
+	__android_log_print(ANDROID_LOG_VERBOSE, TAG.c_str(), "Zip-Server initialize");
 
-	env->ReleaseStringUTFChars(jstr_fn, cstr);
-	
+	if(NULL != jstr_fn)
+	{
+		const char *cstr = env->GetStringUTFChars(jstr_fn, NULL); //Ez utan kell Release!? Mert itt nem tudja mikor lehet felszabadítani.
+		env->ReleaseStringUTFChars(jstr_fn, cstr);
+
+		zipname.assign(cstr); 
+
+		__android_log_print(ANDROID_LOG_VERBOSE, TAG.c_str(), "Zip selected: %s", zipname.c_str());
+
+		main();
+	}
 }
 
-const int method_table_size = 2;
+const int method_table_size = 3;
 
 //these can be called from java code + need declaration in java code
 static JNINativeMethod method_table[] = {
 	{ "myJNIFunc", "()V", (void *)myJNIFunc },
 	{ "myJNICallJavaFunc", "()V", (void *)myJNICallJavaFunc },
-	{ "myJNI_InitializeServer", "(Ljava/lang/String;I)V", (void *)myJNI_InitializeServer } //(String zip_fn, int nport);
+	{ "cf_init_zipserver", "(Ljava/lang/String;I)V", (void *)cf_init_zipserver} //(String zip_fn, int nport);
 };
 
 

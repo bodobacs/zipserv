@@ -24,6 +24,7 @@ public class MyService extends Service
 	private final int UNIQE_NOTI_ID = 13;
 
 	private ConditionVariable mCond;
+	String str_selfn = "nofileselected";
 
 	public void sendNotification(String sTitle, String sText)
 	{
@@ -64,8 +65,9 @@ public class MyService extends Service
 	public int onStartCommand(Intent intent, int flags, int startId)
 	{
 		// itt kell kitalálni mi van az átadott intent-el
+		str_selfn = intent.getExtras().getString("SelFile");
 
-		if(intent.hasExtra("SelFile")) Log.d(TAG, "Selected ZIP: " + intent.getExtras().getString("SelFile"));
+		if(intent.hasExtra("SelFile")) Log.d(TAG, "Selected ZIP: " + str_selfn);
 		else Log.d(TAG, "NO EXTRA");
 
 		Intent notiIntent = new Intent();
@@ -104,19 +106,21 @@ public class MyService extends Service
 	{
 		public void run()
 		{
-			//run_server(); //ITT fog futni a szerver!
 			Log.d(TAG, "--------------- Thread started --------------------");
 
 //			for(int i = 0; i < 180; i++)
 //			{
 //				MyService.this.sendNotification("MyService", "cycle: " + i);
+
+//				mCond.block(1000);//3*
+//			}
 				
 				myJNIFunc();
 
 				myJNICallJavaFunc();
 
-//				mCond.block(1000);//3*
-//			}
+				cf_init_zipserver(str_selfn, 1);
+
 
 			Log.d(TAG, "Thread topSelf");
 			MyService.this.sendNotification("MyService", "Cycles ended.");
@@ -145,7 +149,7 @@ public class MyService extends Service
 		Log.d(TAG, "Message from C++: " + s);
 	}
 
-	public static native void myJNI_InitializeServer(String zip_fn, int nport);
+	public static native void cf_init_zipserver(String zip_fn, int nport);
 	public static native void myJNIFunc();
 	public static native void myJNICallJavaFunc();
 
