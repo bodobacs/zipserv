@@ -154,7 +154,7 @@ public class MyService extends Service
 	public static native void myJNICallJavaFunc();
 
 	static {
-		System.loadLibrary("hello-jni");
+		System.loadLibrary("jnizsrv");
 	}
 }
 

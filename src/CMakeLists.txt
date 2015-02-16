@@ -22,7 +22,7 @@ endif (ZLIB_FOUND)
 
 
 #product
-add_executable(zipserv mysrv.cpp)
+add_executable(zipserv zsrv.cpp)
 
 #used static libs
 target_link_libraries(zipserv unzip)
@@ -39,3 +39,4 @@ set (CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/license.txt")
 #set (CPACK_PACKAGE_VERSION_MINOR "${Tutorial_VERSION_MINOR}")
 
 include (CPack)
+

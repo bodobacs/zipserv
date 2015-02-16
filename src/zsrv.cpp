@@ -5,6 +5,7 @@ Mivel marha nehéz olyan értelmezőt írni ami minden http kérést hatékonyan
 - HEADER-t sajna kell elemezgetni pl: keep alive hasznos lenne, hogy befejezze a weboldal töltését a browser
 */
 
+#include "zsrv.h"
 //#include <unistd.h>
 #include <sys/types.h> //socket, bind
 #include <sys/socket.h>
@@ -12,22 +13,16 @@ Mivel marha nehéz olyan értelmezőt írni ami minden http kérést hatékonyan
 #include <iostream>
 #include <cstdio>
 #include <cctype>
-#include <cstring>
 #include <sstream>
 #include <iomanip>
 #include <unistd.h> //select()
 #include <signal.h> //signal handler
 
-#include "mimetypes.h"
-#include "minizip/unzip.h"
-
 using namespace std;
 
-int listen_port = 19000; //server portja
-
-const string TAG("mysrv.cpp");
-const string APPNAME_str("zipserv-dev");
-const string NOT_FOUND(" NOT_FOUND");
+const std::string TAG("zsrv.cpp");
+const std::string NOT_FOUND(" NOT_FOUND");
+const std::string APPNAME_str("zipserv-dev");
 
 // minizip/unzip return messages
 const std::map<int, std::string> unzip_return_codes = {
@@ -43,10 +38,10 @@ const std::map<int, std::string> unzip_return_codes = {
 
 };
 
-//translates unzip return values to string
-const string &get_unzip_error(int code)
+//translates unzip return values to std::string
+const std::string &get_unzip_error(int code)
 {
-	const map<int, string>::const_iterator itr = unzip_return_codes.find(code);
+	const map<int, std::string>::const_iterator itr = unzip_return_codes.find(code);
 
 	if(unzip_return_codes.end() != itr) return (itr->second);
 
@@ -54,28 +49,29 @@ const string &get_unzip_error(int code)
 	return NOT_FOUND;
 }
 
-
-//atmeneti valtozok
-
-//string zipname("../abs-guide.zip");
-string zipname("help.zip"); //by default opens the package shipped help/info site, faq, etc
-
-//-----------------
-const int buffer_size = 2048;//ennek elégnek kéne lennie, firefoxnak van 8kb
-string request_str(buffer_size, '0');
-string URI_str;
-
-int client_socket = 0;
-
-unzFile zipfile = NULL;
-
-void send_NOT_FOUND(const string &what)//ez jó
+czsrv::czsrv(const std::string fn = "help.zip", int p = 19000) : zipname(fn), listen_port(p), request_str(buffer_size, '0')
 {
-	stringstream content_ss;
+//	zipname = fn;
+//	listen_port = p;
+	client_socket = 0;
+	run = true; 
+}
+
+czsrv::czsrv() : zipname("help.zip"), listen_port(19000), request_str(buffer_size, '0')
+{
+//	zipname = fn;
+//	listen_port = p;
+	client_socket = 0;
+	run = true; 
+}
+
+void czsrv::send_NOT_FOUND(const std::string &what)//ez jó
+{
+ std::stringstream content_ss;
 
 	content_ss << "<html><head>\n<title>404 Not Found</title>\n</head><body>\n<h1>" << what << " Not Found</h1>\nThe requested URL was not found on this server.\n</body></html>\n";
 
-	stringstream response;
+ std::stringstream response;
 	response << "HTTP/1.1 404 Not Found\nContent-Length: " << content_ss.str().length() << "\nConnection: close\nContent-Type: text/html\n\n" << content_ss.str();
 
 	if(0 > send(client_socket, response.str().c_str(), response.str().length(), 0)) perror("Send message content");
@@ -83,13 +79,13 @@ void send_NOT_FOUND(const string &what)//ez jó
 	clog << "[NOT FOUND 404 sent] " << endl;
 }
 
-void send_http_error(const string &title, const string &message)//title has to be a valid http response
+void czsrv::send_http_error(const std::string &title, const std::string &message)//title has to be a valid http response
 {
-	stringstream content_ss;
+ std::stringstream content_ss;
 
 	content_ss << "<html><head>\n<title>" << title << "</title>\n</head><body>\n<h1>" << message << "\n</body></html>\n";
 
-	stringstream response;
+ std::stringstream response;
 	response << "HTTP/1.1 " << title << "\nContent-Length: " << content_ss.str().length() << "\nConnection: close\nContent-Type: text/html\n\n" << content_ss.str();
 
 	if(0 > send(client_socket, response.str().c_str(), response.str().length(), 0)) perror("Send message content");
@@ -97,7 +93,7 @@ void send_http_error(const string &title, const string &message)//title has to b
 	clog << "[error " << title << " sent] " << endl;
 }
 
-void close_zipfile(void)
+void czsrv::close_zipfile(void)
 {
 	if(NULL != zipfile)
 	{
@@ -106,7 +102,7 @@ void close_zipfile(void)
 	}
 }
 
-bool open_zipfile(void)
+bool czsrv::open_zipfile(void)
 {
 	close_zipfile();
 
@@ -123,7 +119,7 @@ bool open_zipfile(void)
 	return false;
 }
 
-bool send_file(void)
+bool czsrv::send_file(void)
 {
 	clog << "[Sending file]" << endl;
 
@@ -141,11 +137,11 @@ bool send_file(void)
 		{
 //			clog << "[Uncompressed size] " << file_info.uncompressed_size << endl;
 
-			string::size_type pos = URI_str.find_last_of('.');
-			string filetype = URI_str.substr(pos+1);
+		 std::string::size_type pos = URI_str.find_last_of('.');
+		 std::string filetype = URI_str.substr(pos+1);
 
-			map<string, string>::const_iterator itr = mimetypes.find(filetype);
-//			if(string::npos != pos && string::npos != URI_str[pos+1] && 
+			map<string, std::string>::const_iterator itr = mimetypes.find(filetype);
+//			if(string::npos != pos && std::string::npos != URI_str[pos+1] && 
 			if(mimetypes.end() != itr)
 			{
 				filetype.assign(itr->second);
@@ -157,7 +153,7 @@ bool send_file(void)
 
 			const int buffsize = 1024;
 			char buffer[buffsize];
-			stringstream response;
+		 std::stringstream response;
 		response << "HTTP/1.1 200 OK\r\nServer: " << APPNAME_str << "\r\nContent-Type: " << filetype << setbase(16) << "\r\nTransfer-Encoding: chunked\r\n\r\n" << flush;
 			
 			while(0 <= (ret = unzReadCurrentFile(zipfile, buffer, buffsize)))
@@ -184,7 +180,7 @@ bool send_file(void)
 					lastchunk = false;
 					break;
 				}
-				response.str(string()); //empty response stream
+				response.str(std::string()); //empty response stream
 			}//while else cerr  << "[unzRead failed: " << ret << " ]" << endl;
 			
 			if(UNZ_OK != unzCloseCurrentFile(zipfile))
@@ -201,14 +197,14 @@ bool send_file(void)
 	return lastchunk;
 }
 
-void send_file_list(void)
+void czsrv::send_file_list(void)
 {	
 	clog << "[Sending file list]" << endl;
 
-	stringstream response;
+ std::stringstream response;
 	response << "HTTP/1.1 200 OK\r\nServer: " << APPNAME_str << "\r\nContent-Type: text/html\r\n" << "Transfer-Encoding: chunked\r\n\r\n" << setbase(16) << flush;
 
-	stringstream content; content << "<html><header><h1>Generated file list</h1></header><body><ol>" << endl;
+ std::stringstream content; content << "<html><header><h1>Generated file list</h1></header><body><ol>" << endl;
 
 	if(NULL != zipfile)
 	{
@@ -235,8 +231,8 @@ void send_file_list(void)
 				if(0 > send(client_socket, response.str().c_str(), response.str().length(), 0))
 					perror("send");
 
-				response.str(string());
-				content.str(string());
+				response.str(std::string());
+				content.str(std::string());
 			}
 
 			ret = unzGoToNextFile(zipfile);
@@ -260,16 +256,16 @@ void send_file_list(void)
 	return;
 }
 
-void send_error(void)
+void czsrv::send_error(void)
 {
 	cerr << "send_error() called" << endl;
 }
 
-bool parse_request(void)
+bool czsrv::parse_request(void)
 {
-	stringstream ss(request_str);
+ std::stringstream ss(request_str);
 
-	string token;
+ std::string token;
 	ss >> token;
 	if(!token.compare("GET"))// || !token.compare("HEADER"))
 	{
@@ -288,7 +284,7 @@ bool parse_request(void)
 	return false;
 }
 
-bool find_file(void)
+bool czsrv::find_file(void)
 {
 	if(NULL != zipfile)
 	{
@@ -305,7 +301,7 @@ bool find_file(void)
 	return false;
 }
 
-bool webserv(void)
+bool czsrv::webserv(void)
 {
 	clog << endl << "[Socket ready, serving client]" << endl;
 
@@ -343,24 +339,22 @@ bool webserv(void)
 }
 
 //mimetypes.cpp-be valo
-void list_mimetypes(void)
+void czsrv::list_mimetypes(void)
 {
-	for(map<string, string>::const_iterator  itr = mimetypes.begin(); itr != mimetypes.end(); itr++)
+	for(map<std::string, std::string>::const_iterator  itr = mimetypes.begin(); itr != mimetypes.end(); itr++)
 	{
 		cout << itr->first << " " << itr->second << endl;
 	}
 }
 
-bool run = true; 
-
-void signalhandler(int signum)
+void signalhandler(int signum) // ????????????????????????
 {
 	cerr << "[Signal caught]: " << signum << endl;
 
-	run = false;
+//	run = false;
 }
 
-void run_server(void)
+void czsrv::run_server(void)
 {
 	bool ret = false;
 
@@ -401,7 +395,7 @@ void run_server(void)
 //					int r = select(greatest_socket+1, &read_fds, NULL, NULL, &tv);
 					int r = select(greatest_socket+1, &read_fds, NULL, NULL, NULL);
 					if(r > 0)
-					{//there sockets to check
+					{//there are sockets to check
 						int last_valid_socket = -1;
 						for(int i=0; i <= greatest_socket; i++)
 						{
@@ -471,129 +465,29 @@ void run_server(void)
 	clog << "[Server closed]" << endl;
 }
 
-#ifdef __ANDROID__
-/****************************************** ANDROID specific functions *************************************************/
-
-#include <jni.h>
-#include <android/log.h>
-
-__android_log_print(ANDROID_LOG_VERBOSE, TAG.c_str(), "START myJNIFunc");
-
-int main(void)
-{
-
-	if(open_zipfile())
-	{
-		run_server();
-
-		close_zipfile();
-	}
-
-	return 0;
-}
-
-extern "C" {
-
-
-static void myJNIFunc(JNIEnv* env, jclass clazz)
-{
-	__android_log_print(ANDROID_LOG_VERBOSE, TAG.c_str(), "START myJNIFunc");
-}
-
-static void myJNICallJavaFunc(JNIEnv* env, jclass clazz)
-{
-	__android_log_print(ANDROID_LOG_VERBOSE, TAG.c_str(), "START myJNICallJavaFunc");
-
-	string s = "Csak kezd kialakulni";
-	jmethodID jmid = env->GetStaticMethodID(clazz, "funcFromC", "(Ljava/lang/String;)V"); //ReleaseStringUTFChars
-	if(jmid != 0)
-	{
-		__android_log_print(ANDROID_LOG_VERBOSE, TAG.c_str(), "NewString");
-
-		jstring jstr = env->NewStringUTF(s.c_str()); //ez utan nem kell Release?! Itt tudja, hogy miután visszatért a függvény, már nem kell. Akkor mi van, ha mashol is használni akarom, he?
-
-		__android_log_print(ANDROID_LOG_VERBOSE, TAG.c_str(), "CallStaticMethod");
-		env->CallStaticVoidMethod(clazz, jmid, jstr);
-
-		__android_log_print(ANDROID_LOG_VERBOSE, TAG.c_str(), "ReleaseString not called");
-	}
-}
-
-void cf_init_zipserver(JNIEnv *env, jclass clazz, jstring jstr_fn, jint ji)
-{
-	__android_log_print(ANDROID_LOG_VERBOSE, TAG.c_str(), "Zip-Server initialize");
-
-	if(NULL != jstr_fn)
-	{
-		const char *cstr = env->GetStringUTFChars(jstr_fn, NULL); //Ez utan kell Release!? Mert itt nem tudja mikor lehet felszabadítani.
-		env->ReleaseStringUTFChars(jstr_fn, cstr);
-
-		zipname.assign(cstr); 
-
-		__android_log_print(ANDROID_LOG_VERBOSE, TAG.c_str(), "Zip selected: %s", zipname.c_str());
-
-		main();
-	}
-}
-
-const int method_table_size = 3;
-
-//these can be called from java code + need declaration in java code
-static JNINativeMethod method_table[] = {
-	{ "myJNIFunc", "()V", (void *)myJNIFunc },
-	{ "myJNICallJavaFunc", "()V", (void *)myJNICallJavaFunc },
-	{ "cf_init_zipserver", "(Ljava/lang/String;I)V", (void *)cf_init_zipserver} //(String zip_fn, int nport);
-};
-
-
-jint JNI_OnLoad(JavaVM* vm, void* reserved)
-{
-    JNIEnv* env;
-    if (vm->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION_1_6) != JNI_OK)
-    {
-//		LOGI("JNI INIT");
-		return JNI_ERR;
-	}else{
-		jclass clazz = (env)->FindClass("com/example/hellojni/MyService");
-		if (clazz) {
-			jint ret = (env)->RegisterNatives(clazz, method_table, method_table_size);
-			(env)->DeleteLocalRef(clazz);
-			return ret == 0 ? JNI_VERSION_1_6 : JNI_ERR;
-		}else{
-			return JNI_ERR;
-    	}
-	}
-    return JNI_VERSION_1_6;
-}
-
-}//extern "C"
-
-#else 
 /****************************************** C specific functions *************************************************/
 
 int main(int argc, char **argv)
 {
+
 	if(1 < argc)
 	{
-		zipname = argv[1];
+//	signal(SIGINT, signalhandler); //that little shit makes an "undefined reference in main" error on NDK
+
+		cout << APPNAME_str << " Built on " __DATE__  " " __TIME__ << endl;
+
+		czsrv server(argv[1], 19000);
+
+		if(server.open_zipfile())
+		{
+			server.run_server();
+
+			server.close_zipfile();
+		}
+
+		cout << endl << "[" << APPNAME_str << " stopped. Bye!]" << endl << endl;
+
 	}
-
-	signal(SIGINT, signalhandler); //that little shit makes an "undefined reference in main" error on NDK
-
-	cout << APPNAME_str << " Built on " __DATE__  " " __TIME__ << endl;
-
-
-	if(open_zipfile())
-	{
-		run_server();
-
-		close_zipfile();
-	}
-
-	cout << endl << "[" << APPNAME_str << " stopped. Bye!]" << endl << endl;
 
 	return 0;
 }
-
-#endif
-
