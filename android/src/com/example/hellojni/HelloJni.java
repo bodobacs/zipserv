@@ -16,18 +16,12 @@
 package com.example.hellojni;
 
 import android.app.Activity;
-//import android.widget.TextView;
 import android.os.Bundle;
 import android.util.Log;
 
-//import android.app.PendingIntent;
 import android.content.Intent;
 import android.view.View;
 import android.os.Bundle;
-//import android.support.v4.app.NotificationCompat; // STATIKUS KONYVTÁR, be kell másolni az sdk-ból!
-//import android.app.NotificationManager; 
-//import android.app.Notification; 
-//import android.util.Log; 
 import android.widget.TextView;
 import android.widget.Button;
 
@@ -45,18 +39,7 @@ public class HelloJni extends Activity
 
         setContentView(R.layout.main);
 
-        /* Create a TextView and set its content.
-         * the text is retrieved by calling a native
-         * function.
-         */
-/*		Log.d(TAG,"-------------- onCreate 1 ------------");
-        TextView  tv = new TextView(this);
-		String message;
-		message = stringFromJNI() + myJNIFunc();
-
-        tv.setText(message);
-
-		Log.d(TAG,"-------------- onCreate 2 ------------");*/
+		((TextView)findViewById(R.id.btn_opensite)).setText(localhost+portnumber);
     }
 
 	public void onBumm(View v)
@@ -72,15 +55,24 @@ public class HelloJni extends Activity
 
 	}
 
+	String localhost = "http://localhost:";
+	int portnumber = 19000;
+
+	public void onOpenSite(View v)
+	{
+		Intent browserIntent = new Intent(Intent.ACTION_VIEW, android.net.Uri.parse("http://localhost:" + portnumber));
+		startActivity(browserIntent);
+	}
+
 	public void switchService(View v)
 	{
-		Log.d(TAG, "switchService eleje");
+/*		Log.d(TAG, "switchService eleje");
 
 		Button b = (Button)findViewById(R.id.btn_switch);
 		b.setText("Gommba");
 
 		Log.d(TAG, "switchService vége");
-	}
+*/	}
 
 	final int REQUEST_FILESELECTOR = 99;
 	String filename_selected;

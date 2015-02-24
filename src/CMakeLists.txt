@@ -22,7 +22,7 @@ endif (ZLIB_FOUND)
 
 
 #product
-add_executable(zipserv zsrv.cpp)
+add_executable(zipserv zsrv.cpp main.cpp)
 
 #used static libs
 target_link_libraries(zipserv unzip)

@@ -16,13 +16,12 @@ Mivel marha nehéz olyan értelmezőt írni ami minden http kérést hatékonyan
 #include <sstream>
 #include <iomanip>
 #include <unistd.h> //select()
-#include <signal.h> //signal handler
+//#include <signal.h> //signal handler
 
-using namespace std;
-
-const std::string TAG("zsrv.cpp");
+const std::string TAG("czsrv");
 const std::string NOT_FOUND(" NOT_FOUND");
 const std::string APPNAME_str("zipserv-dev");
+const std::string HELPZIP("help.zip"); //valahol fixen legyen egy fallback információs zip
 
 // minizip/unzip return messages
 const std::map<int, std::string> unzip_return_codes = {
@@ -41,24 +40,28 @@ const std::map<int, std::string> unzip_return_codes = {
 //translates unzip return values to std::string
 const std::string &get_unzip_error(int code)
 {
-	const map<int, std::string>::const_iterator itr = unzip_return_codes.find(code);
+	const std::map<int, std::string>::const_iterator itr = unzip_return_codes.find(code);
 
 	if(unzip_return_codes.end() != itr) return (itr->second);
 
-	cerr << "Unzip: return code not found" << endl;
+	std::cerr << "Unzip: return code not found" << std::endl;
 	return NOT_FOUND;
 }
 
 czsrv::czsrv(const std::string fn = "help.zip", int p = 19000) : zipname(fn), listen_port(p), request_str(buffer_size, '0')
 {
+	if(0 == zipname.length()) zipname =  HELPZIP;
 //	zipname = fn;
 //	listen_port = p;
 	client_socket = 0;
 	run = true; 
 }
 
-czsrv::czsrv() : zipname("help.zip"), listen_port(19000), request_str(buffer_size, '0')
+czsrv::czsrv() : request_str(buffer_size, '0')
 {
+	zipname = "help.zip";
+	listen_port = 19000;
+
 //	zipname = fn;
 //	listen_port = p;
 	client_socket = 0;
@@ -76,7 +79,7 @@ void czsrv::send_NOT_FOUND(const std::string &what)//ez jó
 
 	if(0 > send(client_socket, response.str().c_str(), response.str().length(), 0)) perror("Send message content");
 
-	clog << "[NOT FOUND 404 sent] " << endl;
+	std::clog << "[NOT FOUND 404 sent] " << std::endl;
 }
 
 void czsrv::send_http_error(const std::string &title, const std::string &message)//title has to be a valid http response
@@ -90,7 +93,7 @@ void czsrv::send_http_error(const std::string &title, const std::string &message
 
 	if(0 > send(client_socket, response.str().c_str(), response.str().length(), 0)) perror("Send message content");
 
-	clog << "[error " << title << " sent] " << endl;
+	std::clog << "[error " << title << " sent] " << std::endl;
 }
 
 void czsrv::close_zipfile(void)
@@ -106,22 +109,24 @@ bool czsrv::open_zipfile(void)
 {
 	close_zipfile();
 
+	std::clog << "[Trying to open: " << zipname << "]" << std::endl;
+
 	zipfile = unzOpen(zipname.c_str());
 	if(NULL != zipfile)
 	{
-		clog << "[" << zipname << " found and opened]" << endl;
+		std::clog << "[" << zipname << " found and opened]" << std::endl;
 //ANDROID sikerult betolteni
 		return true;	
 	}
 
 //ANDROID nem sikerult betolteni
-	cerr << "[unzOpen failed]" << endl;
+	std::cerr << "[unzOpen failed]" << std::endl;
 	return false;
 }
 
 bool czsrv::send_file(void)
 {
-	clog << "[Sending file]" << endl;
+	std::clog << "[Sending file]" << std::endl;
 
 	bool lastchunk = false;
 
@@ -135,12 +140,12 @@ bool czsrv::send_file(void)
 	{
 		if(UNZ_OK == (ret = unzOpenCurrentFile(zipfile)))
 		{
-//			clog << "[Uncompressed size] " << file_info.uncompressed_size << endl;
+//		std::clog<< "[Uncompressed size] " << file_info.uncompressed_size << std::endl;
 
 		 std::string::size_type pos = URI_str.find_last_of('.');
 		 std::string filetype = URI_str.substr(pos+1);
 
-			map<string, std::string>::const_iterator itr = mimetypes.find(filetype);
+			std::map<std::string, std::string>::const_iterator itr = mimetypes.find(filetype);
 //			if(string::npos != pos && std::string::npos != URI_str[pos+1] && 
 			if(mimetypes.end() != itr)
 			{
@@ -149,27 +154,27 @@ bool czsrv::send_file(void)
 				filetype.assign("text/html");
 			}
 
-			clog << "[mimetype] " << itr->second << endl;
+			std::clog << "[mimetype] " << itr->second << std::endl;
 
 			const int buffsize = 1024;
 			char buffer[buffsize];
 		 std::stringstream response;
-		response << "HTTP/1.1 200 OK\r\nServer: " << APPNAME_str << "\r\nContent-Type: " << filetype << setbase(16) << "\r\nTransfer-Encoding: chunked\r\n\r\n" << flush;
+		response << "HTTP/1.1 200 OK\r\nServer: " << APPNAME_str << "\r\nContent-Type: " << filetype << std::setbase(16) << "\r\nTransfer-Encoding: chunked\r\n\r\n" << std::flush;
 			
 			while(0 <= (ret = unzReadCurrentFile(zipfile, buffer, buffsize)))
 			{
 				if(0 == ret)
 				{
 					//last chunk
-					response << ret << "\r\n\r\n" << flush;
+					response << ret << "\r\n\r\n" << std::flush;
 					lastchunk = true;
 				}else{
 					response << ret << "\r\n";
 					response.write(buffer, ret);
-					response << "\r\n" << flush;
+					response << "\r\n" << std::flush;
 				}
 
-//				clog << response.str() << flush;
+//			std::clog<< response.str() << std::flush;
 
 				if(-1 != (ret = send(client_socket, response.str().data(), response.str().length(), 0)))
 				{
@@ -181,16 +186,16 @@ bool czsrv::send_file(void)
 					break;
 				}
 				response.str(std::string()); //empty response stream
-			}//while else cerr  << "[unzRead failed: " << ret << " ]" << endl;
+			}//while else std::clog  << "[unzRead failed: " << ret << " ]" << std::endl;
 			
 			if(UNZ_OK != unzCloseCurrentFile(zipfile))
-				cerr << __LINE__ << ": unzCloseCurrentFile" << get_unzip_error(ret) << endl;
-		}else cerr << __LINE__ << ": unzOpenCurrentFile" << get_unzip_error(ret) << endl;
-	}else cerr << __LINE__ << ": unzGetCurrentFileInfo" << get_unzip_error(ret) << endl;
+				std::cerr << __LINE__ << ": unzCloseCurrentFile" << get_unzip_error(ret) << std::endl;
+		}else std::cerr << __LINE__ << ": unzOpenCurrentFile" << get_unzip_error(ret) << std::endl;
+	}else std::cerr << __LINE__ << ": unzGetCurrentFileInfo" << get_unzip_error(ret) << std::endl;
 
-	clog << "[" << chunks << " chunks sent]" << endl;
+	std::clog << "[" << chunks << " chunks sent]" << std::endl;
 
-	if(lastchunk) clog << "[File sent]" << endl;
+	if(lastchunk) std::clog << "[File sent]" << std::endl;
 
 	if(0 > ret){ send_NOT_FOUND(URI_str); return false; }
 
@@ -199,12 +204,12 @@ bool czsrv::send_file(void)
 
 void czsrv::send_file_list(void)
 {	
-	clog << "[Sending file list]" << endl;
+	std::clog << "[Sending file list]" << std::endl;
 
  std::stringstream response;
-	response << "HTTP/1.1 200 OK\r\nServer: " << APPNAME_str << "\r\nContent-Type: text/html\r\n" << "Transfer-Encoding: chunked\r\n\r\n" << setbase(16) << flush;
+	response << "HTTP/1.1 200 OK\r\nServer: " << APPNAME_str << "\r\nContent-Type: text/html\r\n" << "Transfer-Encoding: chunked\r\n\r\n" << std::setbase(16) << std::flush;
 
- std::stringstream content; content << "<html><header><h1>Generated file list</h1></header><body><ol>" << endl;
+ std::stringstream content; content << "<html><header><h1>Generated file list</h1></header><body><ol>" << std::endl;
 
 	if(NULL != zipfile)
 	{
@@ -219,9 +224,9 @@ void czsrv::send_file_list(void)
 			ret = unzGetCurrentFileInfo(zipfile, &file_info, filename_buffer, filename_buffer_size, NULL, 0, NULL, 0);
 			if(UNZ_OK == ret)
 			{
-				content << "<li><a href=\"" << filename_buffer << "\"/>" << filename_buffer << "</a></li>" << endl;
+				content << "<li><a href=\"" << filename_buffer << "\"/>" << filename_buffer << "</a></li>" << std::endl;
 			}else{
-				if(!f) content << "<h1>Cannot read file info</h1>" << endl;
+				if(!f) content << "<h1>Cannot read file info</h1>" << std::endl;
 				break;
 			}
 
@@ -240,15 +245,15 @@ void czsrv::send_file_list(void)
 
 		if(!f)// first try is failure
 		{
-			content << "<h1>Cannot list zip!</h1>" << endl;
+			content << "<h1>Cannot list zip!</h1>" << std::endl;
 		}else{
-			content << "<h3>" << f << " entries listed.</h3>" << endl;
+			content << "<h3>" << f << " entries listed.</h3>" << std::endl;
 		}
 	}else{
-		content << "<h1>Zip is not open!</h1>" << endl;
+		content << "<h1>Zip is not open!</h1>" << std::endl;
 	}
 
-	content << "</ol></body></html>" << endl;
+	content << "</ol></body></html>" << std::endl;
 
 	response << content.str().length() << "\r\n" << content.str() << "\r\n0\r\n\r\n";
 	if(0 > send(client_socket, response.str().c_str(), response.str().length(), 0)) perror("send");
@@ -258,7 +263,7 @@ void czsrv::send_file_list(void)
 
 void czsrv::send_error(void)
 {
-	cerr << "send_error() called" << endl;
+	std::cerr << "send_error() called" << std::endl;
 }
 
 bool czsrv::parse_request(void)
@@ -269,16 +274,16 @@ bool czsrv::parse_request(void)
 	ss >> token;
 	if(!token.compare("GET"))// || !token.compare("HEADER"))
 	{
-//		clog << "[Found] " << token << endl;
+//	std::clog<< "[Found] " << token << std::endl;
 		ss >> URI_str;
 		if(0 < URI_str.length())
 		{
-			cout << "[URL] " << URI_str << endl;
+			std::cout << "[URL] " << URI_str << std::endl;
 			return true;
 		}
 	}
 
-	clog << "[Not a GET request] " << token << endl;
+	std::clog << "[Not a GET request] " << token << std::endl;
 
 //BAD REQUEST TODO
 	return false;
@@ -288,35 +293,35 @@ bool czsrv::find_file(void)
 {
 	if(NULL != zipfile)
 	{
-		clog << "[Searching zip for] " << URI_str.c_str()+1 << endl;
+	std::clog<< "[Searching zip for] " << URI_str.c_str()+1 << std::endl;
 		unzGoToFirstFile(zipfile);
 		if( UNZ_OK == unzLocateFile(zipfile, URI_str.c_str()+1, 2))
 		{
-			clog << "[Found] " << URI_str.c_str()+1 << endl;
+		std::clog<< "[Found] " << URI_str.c_str()+1 << std::endl;
 			return true;
 		}
 	}
 
-	clog << "[Not found] " << URI_str.c_str()+1 << endl;
+std::clog<< "[Not found] " << URI_str.c_str()+1 << std::endl;
 	return false;
 }
 
 bool czsrv::webserv(void)
 {
-	clog << endl << "[Socket ready, serving client]" << endl;
+std::clog << std::endl << "[Socket ready, serving client]" << std::endl;
 
-	clog << "[Getting request]" << endl;
+std::clog<< "[Getting request]" << std::endl;
 	char buffer[buffer_size];
 	int ret;
 
 	if(0 < (ret = recv(client_socket, buffer, buffer_size, 0)))
 	{
 		request_str.assign(buffer, ret);
-//		clog << endl << "[Request start] " << endl << request_str << endl << "[Request end]" << endl;
+	std::clog<< std::endl << "[Request start] " << std::endl << request_str << std::endl << "[Request end]" << std::endl;
 
 		if(parse_request())
 		{
-			clog << "[RESPONSE START]" << endl;
+		std::clog<< "[RESPONSE START]" << std::endl;
 
 			if(*(URI_str.crbegin()) == '/')
 			{
@@ -326,7 +331,7 @@ bool czsrv::webserv(void)
 			}else if(find_file()) send_file(); else send_NOT_FOUND(URI_str);
 
 			return true;
-			clog << "[RESPONSE END]" << endl;
+		std::clog<< "[RESPONSE END]" << std::endl;
 	//		sleep(1); //select használata előttig ez NAGYON KELLett
 		}
 
@@ -341,18 +346,20 @@ bool czsrv::webserv(void)
 //mimetypes.cpp-be valo
 void czsrv::list_mimetypes(void)
 {
-	for(map<std::string, std::string>::const_iterator  itr = mimetypes.begin(); itr != mimetypes.end(); itr++)
+	for(std::map<std::string, std::string>::const_iterator  itr = mimetypes.begin(); itr != mimetypes.end(); itr++)
 	{
-		cout << itr->first << " " << itr->second << endl;
+	 std::cout << itr->first << " " << itr->second << std::endl;
 	}
 }
 
+/*
 void signalhandler(int signum) // ????????????????????????
 {
-	cerr << "[Signal caught]: " << signum << endl;
+ std::clog << "[Signal caught]: " << signum << std::endl;
 
 //	run = false;
 }
+*/
 
 void czsrv::run_server(void)
 {
@@ -381,7 +388,7 @@ void czsrv::run_server(void)
 				FD_SET(listen_socket, &open_sockets);
 				int greatest_socket = listen_socket;
 				
-				clog << endl << "[zipserv started]" << endl << endl;
+			std::clog << std::endl << "[zipserv started]" << std::endl << std::endl;
 
 				while(run)
 				{//loop
@@ -412,7 +419,7 @@ void czsrv::run_server(void)
 								int new_socket = accept(listen_socket, NULL, NULL);
 								if(-1 != new_socket)
 								{
-									cout << "[New connection created]" << endl;
+								 std::cout << "[New connection created]" << std::endl;
 									FD_SET(new_socket, &open_sockets);
 
 									greatest_socket = new_socket;
@@ -425,7 +432,7 @@ void czsrv::run_server(void)
 								client_socket = i;
 								if(!webserv()) //socket state changed, try to serve or close
 								{
-									clog << "[Closing socket] " << i << endl;
+								std::clog<< "[Closing socket] " << i << std::endl;
 									close(i);
 									FD_CLR(i, &open_sockets);
 
@@ -434,7 +441,7 @@ void czsrv::run_server(void)
 							}//check socket
 						}//for
 					}else if(r == 0){//timeout
-						clog << "[Waiting ...]" << endl;
+					std::clog<< "[Waiting ...]" << std::endl;
 					}else{
 						perror("select()");
 						run = false;
@@ -443,7 +450,7 @@ void czsrv::run_server(void)
 				}//while
 
 				//cleanup
-				clog << "[Closing sockets]" << endl;
+			std::clog<< "[Closing sockets]" << std::endl;
 				FD_ZERO(&read_fds);
 				for(int i=greatest_socket; 0 <= i; i--)
 				{
@@ -452,42 +459,15 @@ void czsrv::run_server(void)
 					shutdown(i, 2);
 					close(i);
 
-					clog << "[Closing socket] " << i << endl;
+				std::clog<< "[Closing socket] " << i << std::endl;
 				}
 				FD_ZERO(&open_sockets);
 
-			}else cerr << "listen(): " << strerror(errno) << endl;
-		}else cerr << "bind(): " << strerror(errno) << endl;
+			}else std::clog << "listen(): " << strerror(errno) << std::endl;
+		}else std::clog << "bind(): " << strerror(errno) << std::endl;
 
 		if(run){ shutdown(listen_socket, 2); close(listen_socket); }
 
-	}else cerr << "socket(): " << strerror(errno) << endl;
-	clog << "[Server closed]" << endl;
-}
-
-/****************************************** C specific functions *************************************************/
-
-int main(int argc, char **argv)
-{
-
-	if(1 < argc)
-	{
-//	signal(SIGINT, signalhandler); //that little shit makes an "undefined reference in main" error on NDK
-
-		cout << APPNAME_str << " Built on " __DATE__  " " __TIME__ << endl;
-
-		czsrv server(argv[1], 19000);
-
-		if(server.open_zipfile())
-		{
-			server.run_server();
-
-			server.close_zipfile();
-		}
-
-		cout << endl << "[" << APPNAME_str << " stopped. Bye!]" << endl << endl;
-
-	}
-
-	return 0;
+	}else std::clog << "socket(): " << strerror(errno) << std::endl;
+	std::clog << "[Server closed]" << std::endl;
 }

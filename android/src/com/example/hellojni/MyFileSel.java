@@ -21,7 +21,8 @@ import android.widget.TextView;
 
 public class MyFileSel extends ListActivity
 {	
-	private static String TAG = "actMain";
+	private static String TAG = "MyFileSel";
+
 	private	List<String> mFileList;
 	private String mPath = Environment.getExternalStorageDirectory().getPath(); // "/"; //actual path to filenames
 	private	int selected_file_index = -1;

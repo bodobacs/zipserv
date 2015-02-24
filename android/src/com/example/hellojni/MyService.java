@@ -19,12 +19,22 @@ import android.os.ConditionVariable;
 
 public class MyService extends Service
 {
-	static String TAG = "HelloJni";
+	static String TAG = "MyService";
 	private int notifId = 1;
 	private final int UNIQE_NOTI_ID = 13;
 
 	private ConditionVariable mCond;
 	String str_selfn = "nofileselected";
+
+	public native void cf_init_zipserver(String zip_fn, int nport);
+	public native void myJNIFunc();
+	public native void myJNICallJavaFunc();
+
+	static
+	{
+		System.loadLibrary("jnizsrv");
+		Log.d(TAG, "Myservice constructor complete.");
+	}
 
 	public void sendNotification(String sTitle, String sText)
 	{
@@ -115,10 +125,13 @@ public class MyService extends Service
 //				mCond.block(1000);//3*
 //			}
 				
+			Log.d(TAG, "myJNIFunc");
 				myJNIFunc();
 
+	/*		Log.d(TAG, "myJNICallJavaFunc");
 				myJNICallJavaFunc();
-
+*/
+			Log.d(TAG, "cf_init_zipserver");
 				cf_init_zipserver(str_selfn, 1);
 
 
@@ -149,12 +162,5 @@ public class MyService extends Service
 		Log.d(TAG, "Message from C++: " + s);
 	}
 
-	public static native void cf_init_zipserver(String zip_fn, int nport);
-	public static native void myJNIFunc();
-	public static native void myJNICallJavaFunc();
-
-	static {
-		System.loadLibrary("jnizsrv");
-	}
 }
 
