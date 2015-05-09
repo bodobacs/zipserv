@@ -16,7 +16,6 @@ Mivel marha nehéz olyan értelmezőt írni ami minden http kérést hatékonyan
 #include <sstream>
 #include <iomanip>
 #include <unistd.h> //select()
-//#include <signal.h> //signal handler
 
 const std::string TAG("czsrv");
 const std::string NOT_FOUND(" NOT_FOUND");
@@ -66,6 +65,20 @@ czsrv::czsrv() : request_str(buffer_size, '0')
 //	listen_port = p;
 	client_socket = 0;
 	run = true; 
+}
+
+void czsrv::init(const std::string fn, int p)
+{
+	request_str.reserve(buffer_size);
+	zipname = fn;
+	listen_port = p;
+	client_socket = 0;
+	run = true; 
+}
+
+void czsrv::stop(void)
+{
+	run = false;
 }
 
 void czsrv::send_NOT_FOUND(const std::string &what)//ez jó
@@ -308,16 +321,16 @@ std::clog<< "[Not found] " << URI_str.c_str()+1 << std::endl;
 
 bool czsrv::webserv(void)
 {
-std::clog << std::endl << "[Socket ready, serving client]" << std::endl;
+	std::clog << std::endl << "[Socket ready, serving client]" << std::endl;
 
-std::clog<< "[Getting request]" << std::endl;
+	std::clog << "[Getting request]" << std::endl;
 	char buffer[buffer_size];
 	int ret;
 
 	if(0 < (ret = recv(client_socket, buffer, buffer_size, 0)))
 	{
 		request_str.assign(buffer, ret);
-	std::clog<< std::endl << "[Request start] " << std::endl << request_str << std::endl << "[Request end]" << std::endl;
+		std::clog<< std::endl << "[Request start] " << std::endl << request_str << std::endl << "[Request end]" << std::endl;
 
 		if(parse_request())
 		{
@@ -331,13 +344,17 @@ std::clog<< "[Getting request]" << std::endl;
 			}else if(find_file()) send_file(); else send_NOT_FOUND(URI_str);
 
 			return true;
-		std::clog<< "[RESPONSE END]" << std::endl;
+		std::clog << "[RESPONSE END]" << std::endl;
 	//		sleep(1); //select használata előttig ez NAGYON KELLett
 		}
 
-	}else if(ret == -1)
-	{
-		perror("recv");
+	}else{
+		std::cerr << "[NO REQUEST]" << std::endl;
+
+		if(ret == -1)
+		{
+			perror("recv");
+		}
 	}
 
 	return false;
@@ -352,20 +369,12 @@ void czsrv::list_mimetypes(void)
 	}
 }
 
-/*
-void signalhandler(int signum) // ????????????????????????
-{
- std::clog << "[Signal caught]: " << signum << std::endl;
-
-//	run = false;
-}
-*/
-
 void czsrv::run_server(void)
 {
 	bool ret = false;
 
 	int listen_socket; //ezen jonnek a keresek
+	int n_open_sockets = 0; //a nyitott kapcsolatok számát tárolja
 	struct sockaddr_in server_address;
 
 	//szerver cimenek beallitasa
@@ -375,20 +384,21 @@ void czsrv::run_server(void)
 
 	if(0 <= (listen_socket = socket(AF_INET, SOCK_STREAM, 0))) //domain, type, protocol(tipusonkent egy szokott lenni)
 	{
+		n_open_sockets =1;
 		if(0 <= bind(listen_socket, (struct sockaddr *) &server_address, sizeof(server_address)))
 		{
 			//ANDROID itt lehetne egy sikeres inicializalas, listening uzenet
 			if(0 == listen(listen_socket, 10))//a kapcsolodasokra figyel a 2. param a varolista hosszat adja meg
 			{
 				//add listen_socket
-				fd_set	open_sockets;
+				fd_set	open_sockets;// ez az osszes
 				FD_ZERO(&open_sockets);
-				fd_set read_fds;
+				fd_set read_fds; //ezt állitja be a select
 
 				FD_SET(listen_socket, &open_sockets);
-				int greatest_socket = listen_socket;
+	//			int greatest_socket = listen_socket;
 				
-			std::clog << std::endl << "[zipserv started]" << std::endl << std::endl;
+				std::clog << std::endl << "[zipserv started]" << std::endl << std::endl;
 
 				while(run)
 				{//loop
@@ -400,11 +410,11 @@ void czsrv::run_server(void)
 //					tv.tv_sec = 10; tv.tv_usec = 0;
 
 //					int r = select(greatest_socket+1, &read_fds, NULL, NULL, &tv);
-					int r = select(greatest_socket+1, &read_fds, NULL, NULL, NULL);
+					int r = select(FD_SETSIZE, &read_fds, NULL, NULL, NULL);
 					if(r > 0)
 					{//there are sockets to check
 						int last_valid_socket = -1;
-						for(int i=0; i <= greatest_socket; i++)
+						for(int i=0; i <= FD_SETSIZE; i++)
 						{
 							if(!(FD_ISSET(i, &read_fds))) continue; //this i is not in the set 
 							last_valid_socket = i;
@@ -419,10 +429,10 @@ void czsrv::run_server(void)
 								int new_socket = accept(listen_socket, NULL, NULL);
 								if(-1 != new_socket)
 								{
-								 std::cout << "[New connection created]" << std::endl;
+									std::cout << "[New connection created] " <<  new_socket << std::endl;
 									FD_SET(new_socket, &open_sockets);
 
-									greatest_socket = new_socket;
+//									greatest_socket = new_socket;
 
 									//linger lin; lin.l_onoff = 1; lin.l_linger = 5; if(setsockopt(client_socket, SOL_SOCKET, SO_LINGER, (void*)&lin, sizeof(lin))) perror("setsockopt");
 
@@ -432,11 +442,12 @@ void czsrv::run_server(void)
 								client_socket = i;
 								if(!webserv()) //socket state changed, try to serve or close
 								{
-								std::clog<< "[Closing socket] " << i << std::endl;
+									std::clog<< "[Closing socket] " << i << std::endl;
+									shutdown(i, 2);
 									close(i);
 									FD_CLR(i, &open_sockets);
 
-									if(i == greatest_socket) greatest_socket = last_valid_socket;
+					//				if(i == greatest_socket) greatest_socket = last_valid_socket;
 								}
 							}//check socket
 						}//for
@@ -450,23 +461,25 @@ void czsrv::run_server(void)
 				}//while
 
 				//cleanup
-			std::clog<< "[Closing sockets]" << std::endl;
+				std::clog<< "[Cleaning up]" << std::endl;
+
 				FD_ZERO(&read_fds);
-				for(int i=greatest_socket; 0 <= i; i--)
+				for(int i=FD_SETSIZE; 0 <= i; i--)
 				{
 					if(!(FD_ISSET(i, &open_sockets))) continue; //this i is not in the set 
-					FD_CLR(i, &open_sockets);
+
 					shutdown(i, 2);
 					close(i);
+					FD_CLR(i, &open_sockets);
 
-				std::clog<< "[Closing socket] " << i << std::endl;
+					std::clog<< "[Closing socket] " << i << std::endl;
 				}
 				FD_ZERO(&open_sockets);
 
 			}else std::clog << "listen(): " << strerror(errno) << std::endl;
 		}else std::clog << "bind(): " << strerror(errno) << std::endl;
 
-		if(run){ shutdown(listen_socket, 2); close(listen_socket); }
+		shutdown(listen_socket, 2); close(listen_socket);
 
 	}else std::clog << "socket(): " << strerror(errno) << std::endl;
 	std::clog << "[Server closed]" << std::endl;

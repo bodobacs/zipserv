@@ -23,6 +23,7 @@ import android.content.Intent;
 import android.view.View;
 import android.os.Bundle;
 import android.widget.TextView;
+import android.widget.EditText;
 import android.widget.Button;
 
 import android.app.Service;
@@ -39,15 +40,18 @@ public class HelloJni extends Activity
 
         setContentView(R.layout.main);
 
-		((TextView)findViewById(R.id.btn_opensite)).setText(localhost+portnumber);
+//		((TextView)findViewById(R.id.et_portnumber)).setText(portnumber);
     }
 
 	public void onBumm(View v)
 	{
+		portnumber = Integer.parseInt(((EditText)findViewById(R.id.et_portnumber)).getText().toString());
+
 		Log.d(TAG, "bumm start");
 
 		Intent i = new Intent(this, MyService.class);
 		i.putExtra("SelFile", filename_selected);
+		i.putExtra("PortNum", (int)portnumber);
 
 		startService(i);
 
@@ -60,6 +64,7 @@ public class HelloJni extends Activity
 
 	public void onOpenSite(View v)
 	{
+		
 		Intent browserIntent = new Intent(Intent.ACTION_VIEW, android.net.Uri.parse("http://localhost:" + portnumber));
 		startActivity(browserIntent);
 	}

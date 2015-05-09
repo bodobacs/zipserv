@@ -1,6 +1,16 @@
 
 #include "zsrv.h"
 #include <iostream>
+#include <signal.h> //signal handler
+
+czsrv server;
+
+void signalhandler(int signum) // ????????????????????????
+{
+	std::clog << "[Signal caught]: " << signum << std::endl;
+
+	server.stop();
+}
 
 int main(int argc, char **argv)
 {
@@ -11,7 +21,7 @@ int main(int argc, char **argv)
 
 	 std::cout << " Built on " __DATE__  " " __TIME__ << std::endl;
 
-		czsrv server(argv[1], 19000);
+		server.init(argv[1], 19000);
 
 		if(server.open_zipfile())
 		{
@@ -20,8 +30,8 @@ int main(int argc, char **argv)
 			server.close_zipfile();
 		}
 
-	 std::cout << std::endl << "[" << " stopped. Bye!]" << std::endl << std::endl;
-
+	}else{
+		std::cout << "Missing zip file in arguent! Cannot start server." << std::endl;
 	}
 
 	return 0;

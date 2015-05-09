@@ -146,7 +146,9 @@ JNIEXPORT void cf_init_zipserver(JNIEnv *env, jobject obj, jstring jstr_fn, jint
 
 		__android_log_print(ANDROID_LOG_VERBOSE, TAG.c_str(), "server CREATE");
 
-		czsrv server(cstr, 19000);
+		std::cout << "zipname: " << cstr << " , portnumber: " << (int)ji << std::endl;
+
+		czsrv server(cstr, (int)ji);
 
 		env->ReleaseStringUTFChars(jstr_fn, cstr);
 
@@ -163,8 +165,8 @@ JNIEXPORT void cf_init_zipserver(JNIEnv *env, jobject obj, jstring jstr_fn, jint
 		__android_log_print(ANDROID_LOG_VERBOSE, TAG.c_str(), "server END");
 
 		std::cerr.rdbuf(pcerrbuf);
-		std::clog.rdbuf(pcerrbuf);
-		std::cout.rdbuf(pcerrbuf);
+		std::clog.rdbuf(pclogbuf);
+		std::cout.rdbuf(pcoutbuf);
 	}
 }
 

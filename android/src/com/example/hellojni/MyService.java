@@ -23,8 +23,9 @@ public class MyService extends Service
 	private int notifId = 1;
 	private final int UNIQE_NOTI_ID = 13;
 
-	private ConditionVariable mCond;
+//	private ConditionVariable mCond;
 	String str_selfn = "nofileselected";
+	int portnumber = 19000;
 
 	public native void cf_init_zipserver(String zip_fn, int nport);
 	public native void myJNIFunc();
@@ -62,11 +63,12 @@ public class MyService extends Service
 	@Override
 	public void onCreate()
 	{
+		super.onCreate();
 //		nM = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
 
 		Thread serverThread = new Thread(null, mServerRunnable, "MyService");
 
-		mCond = new ConditionVariable(false);//késleltetés az üzenetekhez
+//		mCond = new ConditionVariable(false);//késleltetés az üzenetekhez
 		serverThread.start();
 
 	}
@@ -76,6 +78,7 @@ public class MyService extends Service
 	{
 		// itt kell kitalálni mi van az átadott intent-el
 		str_selfn = intent.getExtras().getString("SelFile");
+		portnumber = intent.getExtras().getInt("PortNum");
 
 		if(intent.hasExtra("SelFile")) Log.d(TAG, "Selected ZIP: " + str_selfn);
 		else Log.d(TAG, "NO EXTRA");
@@ -102,7 +105,8 @@ public class MyService extends Service
 	@Override
 	public void onDestroy()
 	{
-		mCond.open();
+//		mCond.open();
+		super.onDestroy();
 	}
 
 	@Override //kotelezo mert absztrakt fuggvény
@@ -132,7 +136,7 @@ public class MyService extends Service
 				myJNICallJavaFunc();
 */
 			Log.d(TAG, "cf_init_zipserver");
-				cf_init_zipserver(str_selfn, 1);
+				cf_init_zipserver(str_selfn, portnumber);
 
 
 			Log.d(TAG, "Thread topSelf");
