@@ -5,18 +5,40 @@
 #include "mimetypes.h"
 #include "minizip/unzip.h"
 
+//Visual Studio _WIN32
+#ifdef _WIN32
+
+#include <winsock2.h>
+#include <ws2tcpip.h>
+
+typedef SOCKET socket_type;
+#else
+
+//Berkeley
+#include <arpa/inet.h> //htons stb
+#include <sys/types.h> //socket, bind
+#include <sys/socket.h>
+#include <unistd.h> //select()
+
+typedef int socket_type;
+
+#endif
+
+
 class czsrv
 {
 
 protected:
+	static const int error_msg_buffer_size = 100;
+	char error_msg_buffer[error_msg_buffer_size];
 	std::string zipname;
 	int listen_port;
 
 	std::string request_str;
 	std::string URI_str;
-	const int buffer_size = 2048;//ennek elégnek kéne lennie, firefoxnak van 8kb
+	static const int buffer_size = 2048;//ennek elégnek kéne lennie, firefoxnak van 8kb
 
-	int client_socket;
+	socket_type client_socket;
 	unzFile zipfile = NULL;
 	bool run; 
 

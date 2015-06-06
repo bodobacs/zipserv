@@ -4,28 +4,56 @@ set(CMAKE_ALLOW_LOOSE_LOOP_CONSTRUCTS ON)
 project(zipserv)
 set(VERSION "0.1")
 
-#new way initialization of mimetypes map<> required c++11
-SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x")
 
+IF(UNIX)
 
-find_package( ZLIB REQUIRED )
-if( ZLIB_FOUND )
-	include_directories( ${ZLIB_INCLUDE_DIRS} )
+	#new way initialization of mimetypes map<> required c++11
+	SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x")
+
+	find_package( ZLIB REQUIRED )
+	if( ZLIB_FOUND )
+		include_directories( ${ZLIB_INCLUDE_DIRS} )
+
+		#variable set to minizip directory. This minizip is android compatible. Original name: ndk-unzip-master.
+		set(LIBUNZIP ${CMAKE_SOURCE_DIR}/minizip)
+
+		#locally builded library minizip/unzip http://www.winimage.com/zLibDll/unzip11.zip depends on zlib
+		add_library(unzip ${LIBUNZIP}/unzip.c ${LIBUNZIP}/ioapi.c)
+		target_link_libraries(unzip ${ZLIB_LIBRARIES})
+
+	endif (ZLIB_FOUND)
+
+	#product
+	add_executable(zipserv zsrv.cpp main.cpp)
+
+	#used static libs
+	target_link_libraries(zipserv unzip)
+
+ELSE() #IF(UNIX)
+
+#Visual Studio config
+IF(WIN32)
+
+	#	SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Qstd=c++11")
+
+	set(ZLIB_DIR ${CMAKE_SOURCE_DIR}/../zlib-1.2.8)
+
+	include_directories( ${ZLIB_DIR} )
 
 	#variable set to minizip directory. This minizip is android compatible. Original name: ndk-unzip-master.
 	set(LIBUNZIP ${CMAKE_SOURCE_DIR}/minizip)
 
-	#locally builded library minizip/unzip http://www.winimage.com/zLibDll/unzip11.zip depends on zlib
 	add_library(unzip ${LIBUNZIP}/unzip.c ${LIBUNZIP}/ioapi.c)
-	target_link_libraries(unzip ${ZLIB_LIBRARIES})
-endif (ZLIB_FOUND)
+	target_link_libraries(unzip ${ZLIB_DIR}/zlib.lib)
 
+	#product
+	add_executable(zipserv zsrv.cpp main.cpp)
 
-#product
-add_executable(zipserv zsrv.cpp main.cpp)
+	#used static libs
+	target_link_libraries(zipserv unzip wsock32 ws2_32)
 
-#used static libs
-target_link_libraries(zipserv unzip)
+ENDIF() #IF(WIN32)
+ENDIF() #IF(UNIX)
 
 
 # dependency map

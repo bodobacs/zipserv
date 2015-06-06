@@ -7,15 +7,41 @@ Mivel marha nehéz olyan értelmezőt írni ami minden http kérést hatékonyan
 
 #include "zsrv.h"
 //#include <unistd.h>
-#include <sys/types.h> //socket, bind
-#include <sys/socket.h>
-#include <arpa/inet.h> //htons stb
 #include <iostream>
 #include <cstdio>
 #include <cctype>
 #include <sstream>
 #include <iomanip>
-#include <unistd.h> //select()
+
+//Visual Studio _WIN32
+#ifdef _WIN32
+
+inline int close(_In_ SOCKET s) { return closesocket(s); }
+
+WSADATA wsaData;
+
+boolean init_winsock2(void)
+{
+	int r;
+
+	r = WSAStartup(MAKEWORD(2,2), &wsaData);
+	if(r != 0)
+	{
+		std::cerr << "Windows Socket DLL initializaiton failed. WSA error code: " << r << std::endl;
+		return false;
+	}
+
+std::clog << "wsaStartup ok" << std::endl;
+		std::cerr << "Windows Socket DLL initializaiton failed. WSA error code: " << r << std::endl;
+
+return true;
+}
+
+#else
+
+#define INVALID_SOCKET -1
+
+#endif
 
 const std::string TAG("czsrv");
 const std::string NOT_FOUND(" NOT_FOUND");
@@ -69,6 +95,11 @@ czsrv::czsrv() : request_str(buffer_size, '0')
 
 void czsrv::init(const std::string fn, int p)
 {
+
+#ifdef _WIN32
+	init_winsock2();
+#endif
+
 	request_str.reserve(buffer_size);
 	zipname = fn;
 	listen_port = p;
@@ -144,7 +175,7 @@ bool czsrv::send_file(void)
 	bool lastchunk = false;
 
 	unz_file_info file_info;
-	int filename_buffer_size = 1024;
+	const int filename_buffer_size = 1024;
 	char filename_buffer[filename_buffer_size];
 	int chunks = 0;
 	
@@ -194,7 +225,7 @@ bool czsrv::send_file(void)
 					chunks++;
 					if(lastchunk) break;
 				}else{ 
-					std::cerr << "send(): " << strerror(errno) << std::endl; //perror("[send] "); 
+					std::cerr << "send(): " << strerror_s(error_msg_buffer, error_msg_buffer_size, errno) << std::endl; //perror("[send] "); 
 
 					lastchunk = false;
 					break;
@@ -232,7 +263,7 @@ void czsrv::send_file_list(void)
 		for(; UNZ_OK == ret; f++)
 		{
 			unz_file_info file_info;
-			int filename_buffer_size = 1024;
+			const int filename_buffer_size = 1024;
 			char filename_buffer[filename_buffer_size];
 
 			ret = unzGetCurrentFileInfo(zipfile, &file_info, filename_buffer, filename_buffer_size, NULL, 0, NULL, 0);
@@ -372,6 +403,8 @@ void czsrv::list_mimetypes(void)
 
 //staticnál ez kell az inicializáláshoz
 bool czsrv::mstaticStopAll = false;
+/*
+#ifdef _WIN32
 
 void czsrv::run_server(void)
 {
@@ -379,8 +412,7 @@ void czsrv::run_server(void)
 
 	bool ret = false;
 
-	int listen_socket; //ezen jonnek a keresek
-	int n_open_sockets = 0; //a nyitott kapcsolatok számát tárolja
+	socket_type listen_socket; //ezen jonnek a keresek
 	struct sockaddr_in server_address;
 
 	//szerver cimenek beallitasa
@@ -388,10 +420,118 @@ void czsrv::run_server(void)
 	server_address.sin_port = htons(listen_port);
 	server_address.sin_addr.s_addr = htonl(INADDR_LOOPBACK);//INADDR_ANY
 
-	if(0 <= (listen_socket = socket(AF_INET, SOCK_STREAM, 0))) //domain, type, protocol(tipusonkent egy szokott lenni)
+	if(INVALID_SOCKET != (listen_socket = socket(AF_INET, SOCK_STREAM, 0))) //domain, type, protocol(tipusonkent egy szokott lenni)
 	{
-		n_open_sockets =1;
-		if(0 <= bind(listen_socket, (struct sockaddr *) &server_address, sizeof(server_address)))
+		if(0 == bind(listen_socket, (struct sockaddr *) &server_address, sizeof(server_address)))
+		{
+			//ANDROID itt lehetne egy sikeres inicializalas, listening uzenet
+			if(0 == listen(listen_socket, 10))//a kapcsolodasokra figyel a 2. param a varolista hosszat adja meg, ha a varolista tele akkor a tobbit elutasitja
+			{
+				//add listen_socket
+				fd_set	open_sockets; FD_ZERO(&open_sockets);
+
+				fd_set read_fds;  FD_ZERO(&read_fds)//sockets readable
+				FD_SET(listen_socket, &read_fds);
+				
+				std::clog << std::endl << "[zipserv started]" << std::endl << std::endl;
+
+				while(run)
+				{//loop
+
+					FD_ZERO(&read_fds);
+					read_fds = open_sockets;
+
+					struct timeval tv; //timer
+					tv.tv_sec = 5; tv.tv_usec = 0;
+
+					int r = select(FD_SETSIZE, &read_fds, NULL, NULL, &tv);
+//					int r = select(FD_SETSIZE, &read_fds, NULL, NULL, NULL); //no timer
+					if(r > 0)
+					{//there are sockets to check
+							if(FD_ISSET(listen_socket, &read_fds)// listen_socket is in something
+							{//new connection
+
+//								struct sockaddr_in client_address;
+//								socklen_t length;
+//								int new_socket = accept(listen_socket, (struct sockaddr *)&client_address, &length);
+
+								socket_type new_socket = accept(listen_socket, NULL, NULL);
+								if(INVALID_SOCKET != new_socket)
+								{
+									std::cout << "New connection created " <<  new_socket << std::endl;
+									FD_SET(new_socket, &open_sockets);
+
+//									greatest_socket = new_socket;
+									//linger lin; lin.l_onoff = 1; lin.l_linger = 5; if(setsockopt(client_socket, SOL_SOCKET, SO_LINGER, (void*)&lin, sizeof(lin))) perror("setsockopt");
+
+								}else std::cerr << "New connection error, accept(): " << strerror_s(error_msg_buffer, error_msg_buffer_size, errno) << std::endl;// perror("[ accept() ] "); 
+
+							}else{
+								client_socket = i;
+								if(!webserv()) //socket state changed, try to serve or close
+								{
+									std::clog<< "[Closing socket] " << i << std::endl;
+									shutdown(i, 2);
+									close(i);
+									FD_CLR(i, &open_sockets);
+								}
+							}//check socket
+					}else if(r == 0)
+					{//timeout
+						std::clog<< "[Waiting ...]" << std::endl;
+						if(czsrv::mstaticStopAll) run = false; //static variable to stop server
+					}else{
+						std::cerr << "select(): " << strerror_s(error_msg_buffer, error_msg_buffer_size, errno) << std::endl; //perror("select()");
+						std::cerr << WSAGetLastErrorMessage("accept() failed") << std::endl;
+						run = false;
+					}
+
+				}//while
+
+				//cleanup
+				std::clog<< "[Cleaning up]" << std::endl;
+
+				FD_ZERO(&read_fds);
+				for(int i=FD_SETSIZE; 0 <= i; i--)
+				{
+					if(!(FD_ISSET(i, &open_sockets))) continue; //this i is not in the set 
+
+					shutdown(i, 2);
+					close(i);
+					FD_CLR(i, &open_sockets);
+
+					std::clog<< "[Closing socket] " << i << std::endl;
+				}
+				FD_ZERO(&open_sockets);
+
+			}else std::cerr << "listen(): " << strerror_s(error_msg_buffer, error_msg_buffer_size, errno) << std::endl;
+		}else std::cerr << "bind(): " << strerror_s(error_msg_buffer, error_msg_buffer_size, errno) << std::endl;
+
+		shutdown(listen_socket, 2); close(listen_socket);
+
+	}else std::cerr << "socket(): " << strerror_s(error_msg_buffer, error_msg_buffer_size, errno) << "; INVLAID_SOCKET:" << INVALID_SOCKET << "; listen_socket:" << listen_socket << ";" << std::endl;
+	std::clog << "[Server closed]" << std::endl;
+}
+
+#else
+*/
+void czsrv::run_server(void)
+{
+	czsrv::mstaticStopAll = false;
+
+	bool ret = false;
+
+	socket_type listen_socket; //ezen jonnek a keresek
+	struct sockaddr_in server_address;
+
+	//szerver cimenek beallitasa
+	server_address.sin_family = AF_INET;
+	server_address.sin_port = htons(listen_port);
+	server_address.sin_addr.s_addr = htonl(INADDR_LOOPBACK);//INADDR_ANY
+
+	if(INVALID_SOCKET != (listen_socket = socket(AF_INET, SOCK_STREAM, 0))) //domain, type, protocol(tipusonkent egy szokott lenni)
+	{
+		if(0 == bind(listen_socket, (struct sockaddr *) &server_address, sizeof(server_address)))
 		{
 			//ANDROID itt lehetne egy sikeres inicializalas, listening uzenet
 			if(0 == listen(listen_socket, 10))//a kapcsolodasokra figyel a 2. param a varolista hosszat adja meg
@@ -419,21 +559,30 @@ void czsrv::run_server(void)
 //					int r = select(FD_SETSIZE, &read_fds, NULL, NULL, NULL);
 					if(r > 0)
 					{//there are sockets to check
-						int last_valid_socket = -1;
-						for(int i=0; i <= FD_SETSIZE; i++)
+
+#ifdef _WIN32
+						for(unsigned int j = 0; j < read_fds.fd_count; j++)
 						{
+							socket_type i = read_fds.fd_array[j]; //win32 uses pointers as file descriptors, fd_set is a struct with a counter and a pointer array (winsock2.h)
+
+#else //LINUX
+
+						for(socket_type i=0; i <= FD_SETSIZE; i++) //FD_SETSIZE default = 64, not for big servers, in windows too
+		  				{
+
 							if(!(FD_ISSET(i, &read_fds))) continue; //this i is not in the set 
-							last_valid_socket = i;
+#endif
 
 							if(i == listen_socket)
 							{//new connection
+std::cout << "?listen?" << std::endl;
 
 //								struct sockaddr_in client_address;
 //								socklen_t length;
 //								int new_socket = accept(listen_socket, (struct sockaddr *)&client_address, &length);
 
 								int new_socket = accept(listen_socket, NULL, NULL);
-								if(-1 != new_socket)
+								if(INVALID_SOCKET != new_socket)
 								{
 									std::cout << "[New connection created] " <<  new_socket << std::endl;
 									FD_SET(new_socket, &open_sockets);
@@ -442,9 +591,10 @@ void czsrv::run_server(void)
 
 									//linger lin; lin.l_onoff = 1; lin.l_linger = 5; if(setsockopt(client_socket, SOL_SOCKET, SO_LINGER, (void*)&lin, sizeof(lin))) perror("setsockopt");
 
-								}else std::cerr << "accept(): " << strerror(errno) << std::endl;// perror("[ accept() ] "); 
+								}else std::cerr << "accept(): " << strerror_s(error_msg_buffer, error_msg_buffer_size, errno) << std::endl;// perror("[ accept() ] "); 
 
 							}else{
+std::cout << "?else?" << std::endl;
 								client_socket = i;
 								if(!webserv()) //socket state changed, try to serve or close
 								{
@@ -453,7 +603,6 @@ void czsrv::run_server(void)
 									close(i);
 									FD_CLR(i, &open_sockets);
 
-					//				if(i == greatest_socket) greatest_socket = last_valid_socket;
 								}
 							}//check socket
 						}//for
@@ -462,7 +611,7 @@ void czsrv::run_server(void)
 						std::clog<< "[Waiting ...]" << std::endl;
 						if(czsrv::mstaticStopAll) run = false; //static variable to stop server
 					}else{
-						std::cerr << "select(): " << strerror(errno) << std::endl; //perror("select()");
+						std::cerr << "select(): " << strerror_s(error_msg_buffer, error_msg_buffer_size, errno) << std::endl; //perror("select()");
 						run = false;
 					}
 
@@ -472,7 +621,7 @@ void czsrv::run_server(void)
 				std::clog<< "[Cleaning up]" << std::endl;
 
 				FD_ZERO(&read_fds);
-				for(int i=FD_SETSIZE; 0 <= i; i--)
+				for(int i = FD_SETSIZE; 0 <= i; i--)
 				{
 					if(!(FD_ISSET(i, &open_sockets))) continue; //this i is not in the set 
 
@@ -484,11 +633,14 @@ void czsrv::run_server(void)
 				}
 				FD_ZERO(&open_sockets);
 
-			}else std::cerr << "listen(): " << strerror(errno) << std::endl;
-		}else std::cerr << "bind(): " << strerror(errno) << std::endl;
+			}else std::cerr << "listen(): " << strerror_s(error_msg_buffer, error_msg_buffer_size, errno) << std::endl;
+		}else std::cerr << "bind(): " << strerror_s(error_msg_buffer, error_msg_buffer_size, errno) << std::endl;
 
 		shutdown(listen_socket, 2); close(listen_socket);
 
-	}else std::cerr << "socket(): " << strerror(errno) << std::endl;
+	}else std::cerr << "socket(): " << strerror_s(error_msg_buffer, error_msg_buffer_size, errno) << std::endl;
 	std::clog << "[Server closed]" << std::endl;
 }
+
+
+//#endif
