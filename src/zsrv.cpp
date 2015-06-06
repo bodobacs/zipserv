@@ -194,7 +194,8 @@ bool czsrv::send_file(void)
 					chunks++;
 					if(lastchunk) break;
 				}else{ 
-					perror("[send] "); 
+					std::cerr << "send(): " << strerror(errno) << std::endl; //perror("[send] "); 
+
 					lastchunk = false;
 					break;
 				}
@@ -369,8 +370,13 @@ void czsrv::list_mimetypes(void)
 	}
 }
 
+//staticnál ez kell az inicializáláshoz
+bool czsrv::mstaticStopAll = false;
+
 void czsrv::run_server(void)
 {
+	czsrv::mstaticStopAll = false;
+
 	bool ret = false;
 
 	int listen_socket; //ezen jonnek a keresek
@@ -406,11 +412,11 @@ void czsrv::run_server(void)
 					FD_ZERO(&read_fds);
 					read_fds = open_sockets;
 
-//					struct timeval tv;
-//					tv.tv_sec = 10; tv.tv_usec = 0;
+					struct timeval tv; //timer
+					tv.tv_sec = 5; tv.tv_usec = 0;
 
-//					int r = select(greatest_socket+1, &read_fds, NULL, NULL, &tv);
-					int r = select(FD_SETSIZE, &read_fds, NULL, NULL, NULL);
+					int r = select(FD_SETSIZE, &read_fds, NULL, NULL, &tv);
+//					int r = select(FD_SETSIZE, &read_fds, NULL, NULL, NULL);
 					if(r > 0)
 					{//there are sockets to check
 						int last_valid_socket = -1;
@@ -436,7 +442,7 @@ void czsrv::run_server(void)
 
 									//linger lin; lin.l_onoff = 1; lin.l_linger = 5; if(setsockopt(client_socket, SOL_SOCKET, SO_LINGER, (void*)&lin, sizeof(lin))) perror("setsockopt");
 
-								}else perror("[ accept() ] "); 
+								}else std::cerr << "accept(): " << strerror(errno) << std::endl;// perror("[ accept() ] "); 
 
 							}else{
 								client_socket = i;
@@ -451,10 +457,12 @@ void czsrv::run_server(void)
 								}
 							}//check socket
 						}//for
-					}else if(r == 0){//timeout
-					std::clog<< "[Waiting ...]" << std::endl;
+					}else if(r == 0)
+					{//timeout
+						std::clog<< "[Waiting ...]" << std::endl;
+						if(czsrv::mstaticStopAll) run = false; //static variable to stop server
 					}else{
-						perror("select()");
+						std::cerr << "select(): " << strerror(errno) << std::endl; //perror("select()");
 						run = false;
 					}
 
@@ -476,11 +484,11 @@ void czsrv::run_server(void)
 				}
 				FD_ZERO(&open_sockets);
 
-			}else std::clog << "listen(): " << strerror(errno) << std::endl;
-		}else std::clog << "bind(): " << strerror(errno) << std::endl;
+			}else std::cerr << "listen(): " << strerror(errno) << std::endl;
+		}else std::cerr << "bind(): " << strerror(errno) << std::endl;
 
 		shutdown(listen_socket, 2); close(listen_socket);
 
-	}else std::clog << "socket(): " << strerror(errno) << std::endl;
+	}else std::cerr << "socket(): " << strerror(errno) << std::endl;
 	std::clog << "[Server closed]" << std::endl;
 }

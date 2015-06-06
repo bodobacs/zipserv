@@ -9,7 +9,7 @@
 //cd android/src
 //javah -classpath ~/android-develop/sdk/platforms/android-11/android.jar:../bin/classes com.example.hellojni.MyService
 
-const std::string TAG("czsrv_jni");
+const std::string TAG("jnizsrv");
 
 class cmybuf : public std::streambuf
 {
@@ -103,7 +103,7 @@ private:
 
 JNIEXPORT void myJNIFunc(JNIEnv* env, jobject obj)
 {
-	__android_log_print(ANDROID_LOG_VERBOSE, TAG.c_str(), "START myJNIFunc");
+	__android_log_print(ANDROID_LOG_VERBOSE, "HelloJni", "myJNIFunc called"); //TAG.c_str()
 }
 
 JNIEXPORT void myJNICallJavaFunc(JNIEnv* env, jobject obj)
@@ -125,6 +125,13 @@ JNIEXPORT void myJNICallJavaFunc(JNIEnv* env, jobject obj)
 
 		__android_log_print(ANDROID_LOG_VERBOSE, TAG.c_str(), "ReleaseString not called");
 	}
+}
+
+JNIEXPORT void myJNI_StopServers(JNIEnv* env, jobject obj)
+{
+	__android_log_print(ANDROID_LOG_VERBOSE, TAG.c_str(), "Stop all servers in seconds!"); //TAG.c_str()
+
+	czsrv::stopALL();
 }
 
 JNIEXPORT void cf_init_zipserver(JNIEnv *env, jobject obj, jstring jstr_fn, jint ji)
@@ -170,10 +177,11 @@ JNIEXPORT void cf_init_zipserver(JNIEnv *env, jobject obj, jstring jstr_fn, jint
 	}
 }
 
-const int method_table_size = 3;
+const int method_table_size = 4;
 
 //these can be called from java code + need declaration in java code
 static JNINativeMethod method_table[] = {
+	{ "myJNI_StopServers", "()V", (void *)myJNI_StopServers },
 	{ "myJNIFunc", "()V", (void *)myJNIFunc },
 	{ "myJNICallJavaFunc", "()V", (void *)myJNICallJavaFunc },
 	{ "cf_init_zipserver", "(Ljava/lang/String;I)V", (void *)cf_init_zipserver} //(String zip_fn, int nport);

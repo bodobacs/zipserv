@@ -14,6 +14,7 @@ import android.util.Log;
 
 import android.app.Service;
 import android.os.IBinder;
+import android.os.Binder;
 
 import android.os.ConditionVariable;
 
@@ -29,6 +30,7 @@ public class MyService extends Service
 
 	public native void cf_init_zipserver(String zip_fn, int nport);
 	public native void myJNIFunc();
+	public native void myJNI_StopServers();
 	public native void myJNICallJavaFunc();
 
 	static
@@ -46,7 +48,7 @@ public class MyService extends Service
 		NotificationCompat.Builder mBuilder = new NotificationCompat.Builder(this)
 //		Notification noti = new NotificationCompat.Builder(this)
 												.setAutoCancel(true)
-												.setContentTitle("My Foreground Service")
+												.setContentTitle("ZReader")
 												.setContentText(sText)
 												.setSmallIcon(R.drawable.evilicon)
 												.setContentIntent(pIntent);
@@ -64,11 +66,9 @@ public class MyService extends Service
 	public void onCreate()
 	{
 		super.onCreate();
-//		nM = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
 
 		Thread serverThread = new Thread(null, mServerRunnable, "MyService");
 
-//		mCond = new ConditionVariable(false);//késleltetés az üzenetekhez
 		serverThread.start();
 
 	}
@@ -105,14 +105,22 @@ public class MyService extends Service
 	@Override
 	public void onDestroy()
 	{
-//		mCond.open();
 		super.onDestroy();
 	}
+
+	private final IBinder mBinder = new LocalBinder();
+
+	public class LocalBinder extends Binder {
+        MyService getService() {
+            // Return this instance of LocalService so clients can call public methods
+            return MyService.this;
+        }
+    }
 
 	@Override //kotelezo mert absztrakt fuggvény
 	public IBinder onBind(Intent intent)
 	{
-		return null;
+		return mBinder;
 	}
 
 	//ebben a Runnable-ben fog futni az zipserver
@@ -122,49 +130,14 @@ public class MyService extends Service
 		{
 			Log.d(TAG, "--------------- Thread started --------------------");
 
-//			for(int i = 0; i < 180; i++)
-//			{
-//				MyService.this.sendNotification("MyService", "cycle: " + i);
-
-//				mCond.block(1000);//3*
-//			}
-				
-			Log.d(TAG, "myJNIFunc");
-				myJNIFunc();
-
-	/*		Log.d(TAG, "myJNICallJavaFunc");
-				myJNICallJavaFunc();
-*/
-			Log.d(TAG, "cf_init_zipserver");
-				cf_init_zipserver(str_selfn, portnumber);
-
-
-			Log.d(TAG, "Thread topSelf");
-			MyService.this.sendNotification("MyService", "Cycles ended.");
+			cf_init_zipserver(str_selfn, portnumber);
 
 			MyService.this.stopForeground(false); //java ...
-			
 			MyService.this.stopSelf(); //java ...
-
-			MyService.this.sendNotification("MyService", "Very END.");
 
 			Log.d(TAG, "--------------- Thread end --------------------");
 		}
 	};
-
-
-	String natStrCout = "kocsog ";
-	
-	public void addCout()
-	{
-		natStrCout += "fasz javasok";
-		Log.d(TAG, natStrCout);
-	}
-	
-	public static void funcFromC(String s)
-	{
-		Log.d(TAG, "Message from C++: " + s);
-	}
 
 }
 

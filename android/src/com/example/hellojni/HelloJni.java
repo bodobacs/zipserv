@@ -27,11 +27,20 @@ import android.widget.EditText;
 import android.widget.Button;
 
 import android.app.Service;
+
+//binding to service
+import android.content.ComponentName;
+import android.content.Context;
 import android.os.IBinder;
+import android.content.ServiceConnection;
 
 public class HelloJni extends Activity
 {
 	String TAG = "HelloJni";
+
+	public MyService mService;
+	boolean mBound = false;
+
     /** Called when the activity is first created. */
     @Override
     public void onCreate(Bundle savedInstanceState)
@@ -40,28 +49,78 @@ public class HelloJni extends Activity
 
         setContentView(R.layout.main);
 
+		//bind service if it is already runing
+	//	Intent i = new Intent(this, MyService.class);
+	//	bindService(i, mConnection, Context.BIND_AUTO_CREATE);
+
+		if(mBound)
+		{//get running options
+			Log.d(TAG, "onCreate BOUND!");
+		}else{
+			Log.d(TAG, "onCreate NOT BOUND!");
+		}
+
 //		((TextView)findViewById(R.id.et_portnumber)).setText(portnumber);
     }
 
-	public void onBumm(View v)
+	MyService.LocalBinder mBinder;
+
+	private ServiceConnection mConnection = new ServiceConnection() {
+		@Override
+		public void onServiceConnected(ComponentName className, IBinder service) {
+			// We've bound to LocalService, cast the IBinder and get LocalService instance
+			mBinder = (MyService.LocalBinder) service;
+			mService = mBinder.getService();
+			Log.d(TAG, "onServiceConnected");
+//			mService.sendNotification("ServiceConnection", "Binded!");
+			mBound = true;
+		}
+
+		@Override
+		public void onServiceDisconnected(ComponentName arg0) {
+			Log.d(TAG, "onServiceDisconnected");
+			mBound = false;
+		}
+	};
+
+	//start service
+	public void onStartServer(View v)
 	{
-		portnumber = Integer.parseInt(((EditText)findViewById(R.id.et_portnumber)).getText().toString());
+		Log.d(TAG, "onStartServer ->");
 
-		Log.d(TAG, "bumm start");
+		if(!filename_selected.isEmpty())
+		{
+			Log.d(TAG, "filename_selected: " + filename_selected);
 
-		Intent i = new Intent(this, MyService.class);
-		i.putExtra("SelFile", filename_selected);
-		i.putExtra("PortNum", (int)portnumber);
+			portnumber = Integer.parseInt(((EditText)findViewById(R.id.et_portnumber)).getText().toString());
 
-		startService(i);
 
-		Log.d(TAG, "bumm end");
+			Intent i = new Intent(this, MyService.class);
+			i.putExtra("SelFile", filename_selected);
+			i.putExtra("PortNum", (int)portnumber);
 
+			startService(i);
+			
+			//bind service, return checked by serviceconnection callbacks
+			bindService(i, mConnection, Context.BIND_AUTO_CREATE);
+
+		}else{//not bound
+			Log.d(TAG, "File not selected!");
+		}
+	}
+
+	public void onStopServer(View v)
+	{
+		if(mBound)
+		{
+			mService.myJNI_StopServers();
+		}
 	}
 
 	String localhost = "http://localhost:";
 	int portnumber = 19000;
 
+	//open site in browser
 	public void onOpenSite(View v)
 	{
 		
@@ -80,7 +139,7 @@ public class HelloJni extends Activity
 */	}
 
 	final int REQUEST_FILESELECTOR = 99;
-	String filename_selected;
+	String filename_selected = "";
 
 	public void onFileChoose(View v)
 	{// start file chooser activity
