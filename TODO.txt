@@ -1,0 +1,3 @@
+Dialog to windows version
+Command line options to set verbosity
+Finish the project finally! fuck me

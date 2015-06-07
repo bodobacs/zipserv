@@ -2,4 +2,4 @@
 build*/
 *.zip
 libs/
-zlib*
+zlib*/

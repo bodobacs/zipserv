@@ -3,13 +3,9 @@ build/
 *.zip
 libs/
 obj/
-res/
 tests/
 gen/
 bin/
 *.properties
 *.txt
-jni/*.cpp
-jni/*.h
-jni/minizip
 build.xml

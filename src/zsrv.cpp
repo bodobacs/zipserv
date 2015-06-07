@@ -401,120 +401,9 @@ void czsrv::list_mimetypes(void)
 	}
 }
 
-//staticnál ez kell az inicializáláshoz
+//static member initialization
 bool czsrv::mstaticStopAll = false;
-/*
-#ifdef _WIN32
 
-void czsrv::run_server(void)
-{
-	czsrv::mstaticStopAll = false;
-
-	bool ret = false;
-
-	socket_type listen_socket; //ezen jonnek a keresek
-	struct sockaddr_in server_address;
-
-	//szerver cimenek beallitasa
-	server_address.sin_family = AF_INET;
-	server_address.sin_port = htons(listen_port);
-	server_address.sin_addr.s_addr = htonl(INADDR_LOOPBACK);//INADDR_ANY
-
-	if(INVALID_SOCKET != (listen_socket = socket(AF_INET, SOCK_STREAM, 0))) //domain, type, protocol(tipusonkent egy szokott lenni)
-	{
-		if(0 == bind(listen_socket, (struct sockaddr *) &server_address, sizeof(server_address)))
-		{
-			//ANDROID itt lehetne egy sikeres inicializalas, listening uzenet
-			if(0 == listen(listen_socket, 10))//a kapcsolodasokra figyel a 2. param a varolista hosszat adja meg, ha a varolista tele akkor a tobbit elutasitja
-			{
-				//add listen_socket
-				fd_set	open_sockets; FD_ZERO(&open_sockets);
-
-				fd_set read_fds;  FD_ZERO(&read_fds)//sockets readable
-				FD_SET(listen_socket, &read_fds);
-				
-				std::clog << std::endl << "[zipserv started]" << std::endl << std::endl;
-
-				while(run)
-				{//loop
-
-					FD_ZERO(&read_fds);
-					read_fds = open_sockets;
-
-					struct timeval tv; //timer
-					tv.tv_sec = 5; tv.tv_usec = 0;
-
-					int r = select(FD_SETSIZE, &read_fds, NULL, NULL, &tv);
-//					int r = select(FD_SETSIZE, &read_fds, NULL, NULL, NULL); //no timer
-					if(r > 0)
-					{//there are sockets to check
-							if(FD_ISSET(listen_socket, &read_fds)// listen_socket is in something
-							{//new connection
-
-//								struct sockaddr_in client_address;
-//								socklen_t length;
-//								int new_socket = accept(listen_socket, (struct sockaddr *)&client_address, &length);
-
-								socket_type new_socket = accept(listen_socket, NULL, NULL);
-								if(INVALID_SOCKET != new_socket)
-								{
-									std::cout << "New connection created " <<  new_socket << std::endl;
-									FD_SET(new_socket, &open_sockets);
-
-//									greatest_socket = new_socket;
-									//linger lin; lin.l_onoff = 1; lin.l_linger = 5; if(setsockopt(client_socket, SOL_SOCKET, SO_LINGER, (void*)&lin, sizeof(lin))) perror("setsockopt");
-
-								}else std::cerr << "New connection error, accept(): " << strerror_s(error_msg_buffer, error_msg_buffer_size, errno) << std::endl;// perror("[ accept() ] "); 
-
-							}else{
-								client_socket = i;
-								if(!webserv()) //socket state changed, try to serve or close
-								{
-									std::clog<< "[Closing socket] " << i << std::endl;
-									shutdown(i, 2);
-									close(i);
-									FD_CLR(i, &open_sockets);
-								}
-							}//check socket
-					}else if(r == 0)
-					{//timeout
-						std::clog<< "[Waiting ...]" << std::endl;
-						if(czsrv::mstaticStopAll) run = false; //static variable to stop server
-					}else{
-						std::cerr << "select(): " << strerror_s(error_msg_buffer, error_msg_buffer_size, errno) << std::endl; //perror("select()");
-						std::cerr << WSAGetLastErrorMessage("accept() failed") << std::endl;
-						run = false;
-					}
-
-				}//while
-
-				//cleanup
-				std::clog<< "[Cleaning up]" << std::endl;
-
-				FD_ZERO(&read_fds);
-				for(int i=FD_SETSIZE; 0 <= i; i--)
-				{
-					if(!(FD_ISSET(i, &open_sockets))) continue; //this i is not in the set 
-
-					shutdown(i, 2);
-					close(i);
-					FD_CLR(i, &open_sockets);
-
-					std::clog<< "[Closing socket] " << i << std::endl;
-				}
-				FD_ZERO(&open_sockets);
-
-			}else std::cerr << "listen(): " << strerror_s(error_msg_buffer, error_msg_buffer_size, errno) << std::endl;
-		}else std::cerr << "bind(): " << strerror_s(error_msg_buffer, error_msg_buffer_size, errno) << std::endl;
-
-		shutdown(listen_socket, 2); close(listen_socket);
-
-	}else std::cerr << "socket(): " << strerror_s(error_msg_buffer, error_msg_buffer_size, errno) << "; INVLAID_SOCKET:" << INVALID_SOCKET << "; listen_socket:" << listen_socket << ";" << std::endl;
-	std::clog << "[Server closed]" << std::endl;
-}
-
-#else
-*/
 void czsrv::run_server(void)
 {
 	czsrv::mstaticStopAll = false;
@@ -642,5 +531,3 @@ std::cout << "?else?" << std::endl;
 	std::clog << "[Server closed]" << std::endl;
 }
 
-
-//#endif

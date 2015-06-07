@@ -31,12 +31,22 @@ IF(UNIX)
 
 ELSE() #IF(UNIX)
 
-#Visual Studio config
+# ON WINDOWS I used NMAKE so in vcvars32.bat command line run:
+# cd zipserv\build32
+# cmake -G "NMake Makefiles" ..
+# nmake
+# For zlib have to set ZLIB_DIR or put it in zipserv directory
+
+# zlib build on windows:
+# nmake -f win32/Makefile.msc
+
 IF(WIN32)
 
-	#	SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Qstd=c++11")
+	#SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Qstd=c++11")
 
 	set(ZLIB_DIR ${CMAKE_SOURCE_DIR}/../zlib-1.2.8)
+
+	set(CMAKE_PREFIX_PATH ${ZLIB_DIR})
 
 	include_directories( ${ZLIB_DIR} )
 
