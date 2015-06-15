@@ -60,6 +60,7 @@ public:
 	void init(const std::string fn, int p);
 	czsrv(const std::string fn, int p);
 	czsrv();
+	~czsrv();
 
 	void run_server(void);
 	void stop(void);

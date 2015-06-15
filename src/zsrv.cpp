@@ -80,6 +80,12 @@ czsrv::czsrv(const std::string fn = "help.zip", int p = 19000) : zipname(fn), li
 //	listen_port = p;
 	client_socket = 0;
 	run = true; 
+	zipfile = NULL;
+}
+
+czsrv::~czsrv()
+{
+	close_zipfile();
 }
 
 czsrv::czsrv() : request_str(buffer_size, '0')
@@ -91,6 +97,7 @@ czsrv::czsrv() : request_str(buffer_size, '0')
 //	listen_port = p;
 	client_socket = 0;
 	run = true; 
+	zipfile = NULL;
 }
 
 void czsrv::init(const std::string fn, int p)

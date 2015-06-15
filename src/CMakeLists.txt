@@ -44,6 +44,9 @@ IF(WIN32)
 
 	#SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Qstd=c++11")
 
+	set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MD")
+	set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /MDd")
+
 	set(ZLIB_DIR ${CMAKE_SOURCE_DIR}/../zlib-1.2.8)
 
 	set(CMAKE_PREFIX_PATH ${ZLIB_DIR})
@@ -57,18 +60,18 @@ IF(WIN32)
 	target_link_libraries(unzip ${ZLIB_DIR}/zlib.lib)
 
 	#product
-	add_executable(zipserv zsrv.cpp main.cpp)
+	add_executable(zipserv_cli zsrv.cpp main.cpp)
+	add_executable(zipserv WIN32 zsrv.cpp zipserv_dialog.rc winmain.cpp)
 
 	#used static libs
 	target_link_libraries(zipserv unzip wsock32 ws2_32)
+	target_link_libraries(zipserv_cli unzip wsock32 ws2_32)
 
-ENDIF() #IF(WIN32)
-ENDIF() #IF(UNIX)
-
+ENDIF(WIN32) #IF(WIN32)
+ENDIF(UNIX) #IF(UNIX)
 
 # dependency map
 # zipserv < unzip < zlib
-
 
 # build a CPack driven installer package
 include (InstallRequiredSystemLibraries)
@@ -77,4 +80,3 @@ set (CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/license.txt")
 #set (CPACK_PACKAGE_VERSION_MINOR "${Tutorial_VERSION_MINOR}")
 
 include (CPack)
-
