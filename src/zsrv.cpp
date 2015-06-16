@@ -505,7 +505,7 @@ std::cout << "?else?" << std::endl;
 					}else if(r == 0)
 					{//timeout
 						std::clog<< "[Waiting ...]" << std::endl;
-						if(czsrv::mstaticStopAll) run = false; //static variable to stop server
+						if(czsrv::mstaticStopAll) run = false; //static variable to stop all server
 					}else{
 						std::cerr << "select(): " << strerror_s(error_msg_buffer, error_msg_buffer_size, errno) << std::endl; //perror("select()");
 						run = false;

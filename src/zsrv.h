@@ -52,7 +52,7 @@ protected:
 	bool webserv(void);
 	void list_mimetypes(void);
 
-	static bool mstaticStopAll; //ugly but no beter yet, if true, all instances stop running
+	static bool mstaticStopAll; //ugly but no better yet, if true, all instances stop running
 public:
 	void close_zipfile(void);
 	bool open_zipfile(void);

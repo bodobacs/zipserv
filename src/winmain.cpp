@@ -14,15 +14,8 @@
 
 #include "zsrv.h"
 
-// Global variables
-
-// The main window class name.
-static TCHAR szWindowClass[] = _T("win32app");
-
-// The string that appears in the application's title bar.
-static TCHAR szTitle[] = _T("Zserv");
-
 HINSTANCE hInst;
+HANDLE server_thread_handle = NULL;
 
 using namespace std;
 
@@ -55,9 +48,12 @@ INT_PTR CALLBACK WndProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 
 	  case WM_COMMAND:
 	  	if(LOWORD(wParam) == ID_START)
-		{
-			HANDLE myhandle = (HANDLE)_beginthreadex(0, 0, &server_thread, 0, 0, 0);
-			CloseHandle(myhandle);
+		{	
+			EnableWindow( GetDlgItem( hDlg, ID_START ), FALSE);
+			EnableWindow( GetDlgItem( hDlg, ID_STOP), TRUE);
+			EnableWindow( GetDlgItem( hDlg, ID_BROWSER), TRUE);
+
+			server_thread_handle = (HANDLE)_beginthreadex(0, 0, &server_thread, 0, 0, 0);
 
 			return (TRUE);
 		}
@@ -65,6 +61,14 @@ INT_PTR CALLBACK WndProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 		if(LOWORD(wParam) == ID_STOP)
 		{
 			server.stop();	
+			SetDlgItemText(hDlg, ID_STOP, "Stopping server ...");
+			WaitForSingleObject(server_thread_handle, INFINITE);
+			SetDlgItemText(hDlg, ID_STOP, "Stop server");
+
+			EnableWindow( GetDlgItem( hDlg, ID_START ), TRUE);
+			EnableWindow( GetDlgItem( hDlg, ID_STOP), FALSE);
+			EnableWindow( GetDlgItem( hDlg, ID_BROWSER), FALSE);
+
 			return (TRUE);
 		}
 
@@ -86,7 +90,11 @@ INT_PTR CALLBACK WndProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 			if(GetOpenFileName(&ofn))
 			{
 				zipname.assign(szFileName);
-				SetDlgItemText(hDlg, ID_ZIPNAME, zipname.c_str());
+				if(zipname.length() > 0)
+				{
+					EnableWindow( GetDlgItem( hDlg, ID_START ), TRUE);
+					SetDlgItemText(hDlg, ID_ZIPNAME, zipname.c_str());
+				}
 			}
 		}
 
@@ -99,14 +107,12 @@ INT_PTR CALLBACK WndProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 			return (TRUE);
 		}
 
-		if (LOWORD(wParam) == IDOK)
+		if (LOWORD(wParam) == IDOK | LOWORD(wParam) == IDCANCEL)
 		{
+			server.stop();	
+			WaitForSingleObject(server_thread_handle, INFINITE);
+			
 		       EndDialog(hDlg, TRUE);
-		       return (TRUE);
-		}
-		if (LOWORD(wParam) == IDCANCEL)
-		{
-		       EndDialog(hDlg, FALSE);
 		       return (TRUE);
 		}
 		break;
