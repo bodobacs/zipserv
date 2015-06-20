@@ -16,6 +16,14 @@ Mivel marha nehéz olyan értelmezőt írni ami minden http kérést hatékonyan
 //Visual Studio _WIN32
 #ifdef _WIN32
 
+
+errno_t strerror_r(int errnum, char *buffer, size_t buffer_size) //strerror() is not threadsafe, threadsafe version on windows is strerror_s 
+{
+
+	return strerror_s(errnum, buffer, buffer_size);
+
+}
+
 inline int close(_In_ SOCKET s) { return closesocket(s); }
 
 WSADATA wsaData;
@@ -232,7 +240,7 @@ bool czsrv::send_file(void)
 					chunks++;
 					if(lastchunk) break;
 				}else{ 
-					std::cerr << "send(): " << strerror_s(error_msg_buffer, error_msg_buffer_size, errno) << std::endl; //perror("[send] "); 
+					std::cerr << "send(): " << strerror_r(errno, error_msg_buffer, error_msg_buffer_size) << std::endl; //perror("[send] "); 
 
 					lastchunk = false;
 					break;
@@ -487,7 +495,7 @@ std::cout << "?listen?" << std::endl;
 
 									//linger lin; lin.l_onoff = 1; lin.l_linger = 5; if(setsockopt(client_socket, SOL_SOCKET, SO_LINGER, (void*)&lin, sizeof(lin))) perror("setsockopt");
 
-								}else std::cerr << "accept(): " << strerror_s(error_msg_buffer, error_msg_buffer_size, errno) << std::endl;// perror("[ accept() ] "); 
+								}else std::cerr << "accept(): " << strerror_r(errno, error_msg_buffer, error_msg_buffer_size) << std::endl;// perror("[ accept() ] "); 
 
 							}else{
 std::cout << "?else?" << std::endl;
@@ -507,7 +515,7 @@ std::cout << "?else?" << std::endl;
 						std::clog<< "[Waiting ...]" << std::endl;
 						if(czsrv::mstaticStopAll) run = false; //static variable to stop all server
 					}else{
-						std::cerr << "select(): " << strerror_s(error_msg_buffer, error_msg_buffer_size, errno) << std::endl; //perror("select()");
+						std::cerr << "select(): " << strerror_r(errno, error_msg_buffer, error_msg_buffer_size) << std::endl; //perror("select()");
 						run = false;
 					}
 
@@ -529,12 +537,12 @@ std::cout << "?else?" << std::endl;
 				}
 				FD_ZERO(&open_sockets);
 
-			}else std::cerr << "listen(): " << strerror_s(error_msg_buffer, error_msg_buffer_size, errno) << std::endl;
-		}else std::cerr << "bind(): " << strerror_s(error_msg_buffer, error_msg_buffer_size, errno) << std::endl;
+			}else std::cerr << "listen(): " << strerror_r(errno, error_msg_buffer, error_msg_buffer_size) << std::endl;
+		}else std::cerr << "bind(): " << strerror_r(errno, error_msg_buffer, error_msg_buffer_size) << std::endl;
 
 		shutdown(listen_socket, 2); close(listen_socket);
 
-	}else std::cerr << "socket(): " << strerror_s(error_msg_buffer, error_msg_buffer_size, errno) << std::endl;
+	}else std::cerr << "socket(): " << strerror_r(errno, error_msg_buffer, error_msg_buffer_size) << std::endl;
 	std::clog << "[Server closed]" << std::endl;
 }
 
