@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical"
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent"
+    >
+<TextView
+	android:id="@+id/t_myserv_output"
+    android:layout_width="fill_parent"
+    android:layout_height="wrap_content"
+    android:padding="5dp"
+    android:text="Server status"
+    />
+<View
+	android:id="@+id/separator"
+    android:layout_width="fill_parent"
+    android:layout_height="1dp"
+    android:background="@android:color/darker_gray"/>
+<TextView
+	android:id="@+id/tv_selectedfile"
+    android:layout_width="fill_parent"
+    android:layout_height="wrap_content"
+    android:padding="5dp"
+    android:text="Zip file not selected"
+    />
+<Button
+	android:layout_height="wrap_content"
+    android:layout_width="fill_parent"
+	android:text="Choose zip file"
+	android:onClick="onFileChoose" />
+
+<Button
+	android:layout_height="wrap_content"
+    android:layout_width="fill_parent"
+	android:text="Start server"
+	android:onClick="onStartServer" />
+<Button
+	android:layout_height="wrap_content"
+    android:layout_width="fill_parent"
+	android:text="Stop server"
+	android:onClick="onStopServer" />
+<EditText
+    android:id="@+id/et_portnumber"
+    android:layout_width="fill_parent"
+    android:gravity="center"
+    android:layout_height="wrap_content"
+    android:hint="Port number field"
+    android:text="19000"
+    android:textIsSelectable="true"
+    android:maxLength="5"
+    android:numeric="decimal"
+    android:inputType="numberDecimal" />
+<Button
+	android:id="@+id/btn_opensite"
+    android:layout_width="fill_parent"
+	android:layout_height="wrap_content"
+	android:text="@string/name_btn_opensite"
+	android:onClick="onOpenSite" />
+</LinearLayout>
+

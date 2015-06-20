@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical"
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent">
+	<TextView  
+		android:id="@+id/tv_cim"
+		android:layout_width="fill_parent" 
+		android:layout_height="wrap_content" 
+		android:text="Absolute filename path"
+		/>
+
+	<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+		android:orientation="horizontal"
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content">
+		<Button
+			android:id="@+id/btn_up"
+			android:layout_weight="1"
+			android:layout_height="wrap_content"
+			android:layout_width="wrap_content"
+			android:text="\u2191"
+			android:onClick="onUP" />
+		<Button
+			android:id="@+id/btn_select"
+			android:enabled="true"
+			android:layout_weight="1"
+			android:layout_height="wrap_content"
+			android:layout_width="wrap_content"
+			android:text="Cancel"
+			android:onClick="onSelect" />
+	</LinearLayout>
+	<ListView 
+		android:choiceMode="singleChoice"
+        android:layout_width="fill_parent"
+        android:layout_height="fill_parent"
+        android:layout_weight="1"
+        android:id="@android:id/list"></ListView>
+</LinearLayout>
+
