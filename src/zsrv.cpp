@@ -20,7 +20,7 @@ Mivel marha nehéz olyan értelmezőt írni ami minden http kérést hatékonyan
 errno_t strerror_r(int errnum, char *buffer, size_t buffer_size) //strerror() is not threadsafe, threadsafe version on windows is strerror_s 
 {
 
-	return strerror_s(errnum, buffer, buffer_size);
+	return strerror_s(buffer, buffer_size, errnum);
 
 }
 
@@ -39,10 +39,9 @@ boolean init_winsock2(void)
 		return false;
 	}
 
-std::clog << "wsaStartup ok" << std::endl;
-		std::cerr << "Windows Socket DLL initializaiton failed. WSA error code: " << r << std::endl;
+	std::clog << "wsaStartup ok" << std::endl;
 
-return true;
+	return true;
 }
 
 #else
