@@ -31,14 +31,19 @@ public class MyService extends Service
 	public native void cf_init_zipserver(String zip_fn, int nport);
 	public native void myJNIFunc();
 	public native void myJNI_StopServers();
-	public native void myJNICallJavaFunc();
 
 	static
 	{
-		System.loadLibrary("jnizsrv");
-		Log.d(TAG, "Myservice constructor complete.");
-	}
 
+		try {
+				System.loadLibrary("jnizsrv");
+				Log.d(TAG, "Myservice constructor complete.");
+        }
+        catch (UnsatisfiedLinkError e) {
+				Log.d(TAG, "Cannot load shared library");
+        }
+	}
+	
 	public void sendNotification(String sTitle, String sText)
 	{
 		Intent intent = new Intent();//this, ActNotif.class); //saját magát nyitja meg
@@ -135,9 +140,21 @@ public class MyService extends Service
 			MyService.this.stopForeground(false); //java ...
 			MyService.this.stopSelf(); //java ...
 
-			Log.d(TAG, "--------------- Thread end --------------------");
+			Log.d(TAG, "----------------- Thread end ----------------------");
 		}
 	};
+
+	public void funcFromC(String s)
+	{
+
+			Log.d(TAG, "Message from C++ lib" + s);
+	}
+	
+	public int fromjni_status(int i)
+	{
+			Log.d(TAG, "Status from jni: " + i);
+			return i+1;
+	}
 
 }
 

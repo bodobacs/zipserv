@@ -127,6 +127,29 @@ JNIEXPORT void myJNICallJavaFunc(JNIEnv* env, jobject obj)
 	}
 }
 
+int JNI_call_java_IntFunc(JNIEnv* env, jobject obj, const std::string func_name, int param_i)
+{
+	jint ret = 0;
+    jclass cla = env->GetObjectClass(obj);
+
+	__android_log_print(ANDROID_LOG_VERBOSE, TAG.c_str(), "START myJNICallJavaFunc");
+
+	std::string s = "Csak kezd kialakulni";
+	jmethodID jmid = env->GetMethodID(cla, "fromjni_status", "(I)I"); //ReleaseStringUTFChars
+	if(jmid != 0)
+	{
+		__android_log_print(ANDROID_LOG_VERBOSE, TAG.c_str(), "NewString");
+
+		jstring jstr = env->NewStringUTF(s.c_str()); //ez utan nem kell Release?! Itt tudja, hogy miután visszatért a függvény, már nem kell. Akkor mi van, ha mashol is használni akarom, he?
+
+		__android_log_print(ANDROID_LOG_VERBOSE, TAG.c_str(), "CallStaticMethod");
+		ret = env->CallIntMethod(obj, jmid, (jint)param_i);
+
+		__android_log_print(ANDROID_LOG_VERBOSE, TAG.c_str(), "ReleaseString not called");
+	}
+	return (int)ret;
+}
+
 JNIEXPORT void myJNI_StopServers(JNIEnv* env, jobject obj)
 {
 	__android_log_print(ANDROID_LOG_VERBOSE, TAG.c_str(), "Stop all servers in seconds!"); //TAG.c_str()
@@ -163,6 +186,9 @@ JNIEXPORT void cf_init_zipserver(JNIEnv *env, jobject obj, jstring jstr_fn, jint
 
 		__android_log_print(ANDROID_LOG_VERBOSE, TAG.c_str(), "server START");
 
+		myJNICallJavaFunc(env, obj);
+		std::cout << "Return JNI_call_java_IntFiunc: " << JNI_call_java_IntFunc(env, obj, "NameOfJAVAFunc", 10) << std::endl;
+
 		if(server.open_zipfile())
 		{
 			server.run_server();
@@ -177,13 +203,17 @@ JNIEXPORT void cf_init_zipserver(JNIEnv *env, jobject obj, jstring jstr_fn, jint
 	}
 }
 
-const int method_table_size = 4;
+/*
+SOOOOOOOOOOO IMPORTANT
+HAVE TO FOLLOW CHANGES OF FUNCTION LIST
+*/
+const int method_table_size = 3; //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 //these can be called from java code + need declaration in java code
 static JNINativeMethod method_table[] = {
 	{ "myJNI_StopServers", "()V", (void *)myJNI_StopServers },
 	{ "myJNIFunc", "()V", (void *)myJNIFunc },
-	{ "myJNICallJavaFunc", "()V", (void *)myJNICallJavaFunc },
+//	{ "myJNICallJavaFunc", "()V", (void *)myJNICallJavaFunc }, nem kell ez csak megkeresi a fuggvenyt a javaban es meghivja, nem kell regisztralni
 	{ "cf_init_zipserver", "(Ljava/lang/String;I)V", (void *)cf_init_zipserver} //(String zip_fn, int nport);
 };
 

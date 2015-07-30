@@ -55,9 +55,9 @@ public class HelloJni extends Activity
 
 		if(mBound)
 		{//get running options
-			Log.d(TAG, "onCreate BOUND!");
+			Log.d(TAG, "onCreate is bound to previous instance!");
 		}else{
-			Log.d(TAG, "onCreate NOT BOUND!");
+			Log.d(TAG, "onCreate is NOT bound to previous instance!");
 		}
 
 //		((TextView)findViewById(R.id.et_portnumber)).setText(portnumber);

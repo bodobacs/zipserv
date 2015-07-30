@@ -27,7 +27,7 @@ public class MyFileSel extends ListActivity
 	private String mPath = Environment.getExternalStorageDirectory().getPath(); // "/"; //actual path to filenames
 	private	int selected_file_index = -1;
 	private ArrayAdapter<String> adapter;
-	private final String str_FTYPE = ".zip"; //extension filter
+	private final String str_FTYPE = ""; //".zip"; //extension filter
 
 	public void onCreate(Bundle bundle)
 	{
