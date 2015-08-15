@@ -1,4 +1,4 @@
-package com.example.hellojni;
+package hu.bigplayer.zipservapp;
 
 import android.app.Activity;
 import android.app.PendingIntent;
@@ -88,7 +88,7 @@ public class MyService extends Service
 		if(intent.hasExtra("SelFile")) Log.d(TAG, "Selected ZIP: " + str_selfn);
 		else Log.d(TAG, "NO EXTRA");
 
-		Intent notiIntent = new Intent();
+		Intent notiIntent = new Intent(this, ZipservApp.class);
 		PendingIntent pIntent = PendingIntent.getActivity(this, 0, notiIntent, 0);
 
 		NotificationCompat.Builder mBuilder = new NotificationCompat.Builder(this)

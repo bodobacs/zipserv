@@ -1,4 +1,4 @@
-package com.example.hellojni;
+package hu.bigplayer.zipservapp;
 
 import android.app.ListActivity;
 import android.os.Bundle;

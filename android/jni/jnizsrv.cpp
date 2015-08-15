@@ -103,7 +103,7 @@ private:
 
 JNIEXPORT void myJNIFunc(JNIEnv* env, jobject obj)
 {
-	__android_log_print(ANDROID_LOG_VERBOSE, "HelloJni", "myJNIFunc called"); //TAG.c_str()
+	__android_log_print(ANDROID_LOG_VERBOSE, "ZipservApp", "myJNIFunc called"); //TAG.c_str()
 }
 
 JNIEXPORT void myJNICallJavaFunc(JNIEnv* env, jobject obj)
@@ -227,7 +227,7 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void* reserved)
 //		LOGI("JNI INIT");
 		return JNI_ERR;
 	}else{
-		jclass clazz = (env)->FindClass("com/example/hellojni/MyService");
+		jclass clazz = (env)->FindClass("hu/bigplayer/zipservapp/MyService");
 		if (clazz) {
 			jint ret = (env)->RegisterNatives(clazz, method_table, method_table_size);
 			(env)->DeleteLocalRef(clazz);

@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.example.hellojni;
+package hu.bigplayer.zipservapp;
 
 import android.app.Activity;
 import android.os.Bundle;
@@ -34,9 +34,9 @@ import android.content.Context;
 import android.os.IBinder;
 import android.content.ServiceConnection;
 
-public class HelloJni extends Activity
+public class ZipservApp extends Activity
 {
-	String TAG = "HelloJni";
+	String TAG = "ZipservApp";
 
 	public MyService mService;
 	boolean mBound = false;
@@ -53,15 +53,34 @@ public class HelloJni extends Activity
 	//	Intent i = new Intent(this, MyService.class);
 	//	bindService(i, mConnection, Context.BIND_AUTO_CREATE);
 
-		if(mBound)
-		{//get running options
-			Log.d(TAG, "onCreate is bound to previous instance!");
-		}else{
-			Log.d(TAG, "onCreate is NOT bound to previous instance!");
-		}
 
 //		((TextView)findViewById(R.id.et_portnumber)).setText(portnumber);
     }
+
+	@Override
+	public void onStart()
+	{
+		super.onStart();
+
+		Intent i = new Intent(this, MyService.class);
+		bindService(i, mConnection, 0);
+		Log.d(TAG, "onStart");
+	}
+
+	@Override
+	public void onStop()
+	{
+		super.onStop();
+		Log.d(TAG, "onStop");
+		
+		if(mBound)
+		{
+			unbindService(mConnection);
+			mBound = false;
+		}
+
+		Log.d(TAG, "unBind");
+	}
 
 	MyService.LocalBinder mBinder;
 
@@ -88,12 +107,11 @@ public class HelloJni extends Activity
 	{
 		Log.d(TAG, "onStartServer ->");
 
-		if(!filename_selected.isEmpty())
+		if(!mBound && !filename_selected.isEmpty())
 		{
 			Log.d(TAG, "filename_selected: " + filename_selected);
 
 			portnumber = Integer.parseInt(((EditText)findViewById(R.id.et_portnumber)).getText().toString());
-
 
 			Intent i = new Intent(this, MyService.class);
 			i.putExtra("SelFile", filename_selected);
@@ -102,10 +120,10 @@ public class HelloJni extends Activity
 			startService(i);
 			
 			//bind service, return checked by serviceconnection callbacks
-			bindService(i, mConnection, Context.BIND_AUTO_CREATE);
+			bindService(i, mConnection, 0);
 
 		}else{//not bound
-			Log.d(TAG, "File not selected!");
+			Log.d(TAG, "File not selected or service not bound!");
 		}
 	}
 
