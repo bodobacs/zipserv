@@ -1,5 +1,10 @@
+*.[oa]
+*~
+*.jpg
+*.png
+stuff/
+build/
+data/
 *.swp
-build*/
-*.zip
-libs/
-zlib*/
+*.so
+

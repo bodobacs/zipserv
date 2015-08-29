@@ -3,7 +3,7 @@
 
 #include <cstring>
 #include "mimetypes.h"
-#include "minizip/unzip.h"
+#include "../libarchives/archives.h"
 
 //Visual Studio _WIN32
 #ifdef _WIN32
@@ -29,9 +29,11 @@ class czsrv
 {
 
 protected:
+	carchive archive;
+
 	static const int error_msg_buffer_size = 100;
 	char error_msg_buffer[error_msg_buffer_size];
-	std::string zipname;
+	std::string archive_name;
 	int listen_port;
 
 	std::string request_str;
@@ -39,7 +41,6 @@ protected:
 	static const int buffer_size = 2048;//ennek elégnek kéne lennie, firefoxnak van 8kb
 
 	socket_type client_socket;
-	unzFile zipfile = NULL;
 	bool run; 
 
 	void send_NOT_FOUND(const std::string &what);
@@ -54,16 +55,17 @@ protected:
 
 	static bool mstaticStopAll; //ugly but no better yet, if true, all instances stop running
 public:
-	void close_zipfile(void);
-	bool open_zipfile(void);
 
 	void init(const std::string fn, int p);
+
 	czsrv(const std::string fn, int p);
 	czsrv();
 	~czsrv();
 
 	void run_server(void);
 	void stop(void);
+
+	bool open(void);
 
 	static void stopALL(void){ mstaticStopAll = true; }
 private:
