@@ -24,18 +24,21 @@ IF(UNIX)
 	endif (ZLIB_FOUND)
 
 	set(LIBCHM ${CMAKE_SOURCE_DIR}/../libarchives/modchmlib)
-	add_library(chmlib SHARED ${LIBCHM}/chm_lib.c ${LIBCHM}/lzx.c)
-#	target_link_libraries(chmlib ${LIBCHM})
+	add_library(modchmlib SHARED ${LIBCHM}/chm_lib.c ${LIBCHM}/lzx.c)
+#	target_link_libraries(modchmlib ${LIBCHM})
 
 	set(LIBARCHIVES ${CMAKE_SOURCE_DIR}/../libarchives)
-	add_library(archives SHARED ${LIBARCHIVES}/archives.cpp)
-	target_link_libraries(archives chmlib unzip)
+	add_library(archives ${LIBARCHIVES}/archives.cpp ${LIBARCHIVES}/archives.h)
+	target_link_libraries(archives modchmlib unzip)
 
 	#product
 	add_executable(test_archives ${LIBARCHIVES}/test_archives.cpp)
-
 	#used static libs
-	target_link_libraries(test_archives archives chmlib unzip)
+	target_link_libraries(test_archives archives modchmlib unzip)
+	
+	#product
+	add_executable(zserv ${CMAKE_SOURCE_DIR}/main.cpp ${CMAKE_SOURCE_DIR}/zsrv.cpp ${CMAKE_SOURCE_DIR}/zsrv.h ${CMAKE_SOURCE_DIR}/mimetypes.h ${LIBARCHIVES}/archives.h)
+	target_link_libraries(zserv archives)
 
 ELSE() #IF(UNIX)
 

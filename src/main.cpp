@@ -1,4 +1,3 @@
-
 #include "zsrv.h"
 #include <iostream>
 #include <signal.h> //signal handler
@@ -14,7 +13,7 @@ void signalhandler(int signum) // ???????????????????????? Do not use in android
 
 int main(int argc, char **argv)
 {
-	 std::cout << "zipserv\nBuilt on " __DATE__  " " __TIME__ << std::endl;
+	std::cout << "zipserv\nBuilt on " __DATE__  " " __TIME__ << std::endl;
 
 	if(1 < argc)
 	{
@@ -36,10 +35,9 @@ int main(int argc, char **argv)
 
 		server.init(filename, port);
 
-		if(server.open_zipfile())
+		if(server.open())
 		{
 			server.run_server();
-			server.close_zipfile();
 		}
 	}else{
 
