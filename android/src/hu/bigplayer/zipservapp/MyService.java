@@ -36,6 +36,8 @@ public class MyService extends Service
 	{
 
 		try {
+				System.loadLibrary("modchmlib");
+				System.loadLibrary("unzip");
 				System.loadLibrary("jnizsrv");
 				Log.d(TAG, "Myservice constructor complete.");
         }

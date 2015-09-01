@@ -1,0 +1,7 @@
+backup:
+git bundle create [backup-path/zipserv-date-gitbackup.bundle] --all
+
+restore backup:
+git bundle verify bundlefile
+git clone bundlefile
+

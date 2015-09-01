@@ -4,7 +4,7 @@
 #include <jni.h>
 #include <android/log.h>
 
-#include "zsrv.h"
+#include "../../src/zsrv.h"
 
 //cd android/src
 //javah -classpath ~/android-develop/sdk/platforms/android-11/android.jar:../bin/classes com.example.hellojni.MyService
@@ -189,10 +189,9 @@ JNIEXPORT void cf_init_zipserver(JNIEnv *env, jobject obj, jstring jstr_fn, jint
 		myJNICallJavaFunc(env, obj);
 		std::cout << "Return JNI_call_java_IntFiunc: " << JNI_call_java_IntFunc(env, obj, "NameOfJAVAFunc", 10) << std::endl;
 
-		if(server.open_zipfile())
+		if(server.open())
 		{
 			server.run_server();
-			server.close_zipfile();
 		}
 
 		__android_log_print(ANDROID_LOG_VERBOSE, TAG.c_str(), "server END");

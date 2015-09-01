@@ -42,7 +42,7 @@ IF(UNIX)
 
 ELSE() #IF(UNIX)
 
-# ON WINDOWS I used NMAKE so in vcvars32.bat command line run:
+# ON WINDOWS I used NMAKE, so in vcvars32.bat command line run:
 # cd zipserv\build32
 # cmake -G "NMake Makefiles" ..
 # nmake
@@ -53,30 +53,29 @@ ELSE() #IF(UNIX)
 
 IF(WIN32)
 
-	#SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Qstd=c++11")
+	SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Qstd=c++11")
 
-#	set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MD")
-#	set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /MDd")
-#
-#	set(ZLIB_DIR ${CMAKE_SOURCE_DIR}/../zlib-1.2.8)
-#
-#	set(CMAKE_PREFIX_PATH ${ZLIB_DIR})
-#
-#	include_directories( ${ZLIB_DIR} )
-#
-#	#variable set to minizip directory. This minizip is android compatible. Original name: ndk-unzip-master.
-#	set(LIBUNZIP ${CMAKE_SOURCE_DIR}/minizip)
-#
-#	add_library(unzip ${LIBUNZIP}/unzip.c ${LIBUNZIP}/ioapi.c)
-#	target_link_libraries(unzip ${ZLIB_DIR}/zlib.lib)
-#
-#	#product
-#	add_executable(zipserv_cli zsrv.cpp main.cpp)
-#	add_executable(zipserv WIN32 zsrv.cpp zipserv_dialog.rc winmain.cpp)
-#
-#	#used static libs
-#	target_link_libraries(zipserv unzip wsock32 ws2_32)
-#	target_link_libraries(zipserv_cli unzip wsock32 ws2_32)
+	set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MD")
+	set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /MDd")
+
+	set(ZLIB_DIR ${CMAKE_SOURCE_DIR}/../zlib-1.2.8)
+
+	set(CMAKE_PREFIX_PATH ${ZLIB_DIR})
+
+	include_directories( ${ZLIB_DIR} )
+
+	#variable set to minizip directory. This minizip is android compatible. Original name: ndk-unzip-master.
+	set(LIBUNZIP ${CMAKE_SOURCE_DIR}/minizip)
+
+	add_library(unzip ${LIBUNZIP}/unzip.c ${LIBUNZIP}/ioapi.c)
+	target_link_libraries(unzip ${ZLIB_DIR}/zlib.lib)
+
+	#product
+	add_executable(zipserv_cli zsrv.cpp main.cpp)
+	target_link_libraries(zipserv_cli unzip wsock32 ws2_32)
+
+	add_executable(zipserv WIN32 zsrv.cpp zipserv_dialog.rc winmain.cpp)
+	target_link_libraries(zipserv unzip wsock32 ws2_32)
 
 ENDIF(WIN32) #IF(WIN32)
 ENDIF(UNIX) #IF(UNIX)
