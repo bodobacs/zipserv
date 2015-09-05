@@ -68,7 +68,7 @@ public class ZipservApp extends Activity
 	}
 
 	@Override
-	public void onStop()
+	public void onStop() //this activity stops, but the service can run
 	{
 		super.onStop();
 		Log.d(TAG, "onStop");
@@ -80,6 +80,7 @@ public class ZipservApp extends Activity
 		}
 
 		Log.d(TAG, "unBind");
+
 	}
 
 	MyService.LocalBinder mBinder;
@@ -93,6 +94,16 @@ public class ZipservApp extends Activity
 			Log.d(TAG, "onServiceConnected");
 //			mService.sendNotification("ServiceConnection", "Binded!");
 			mBound = true;
+
+			filename_selected = mService.str_selfn;
+			portnumber = mService.portnumber;
+			
+//HERE should update the buttons disabled/enabled state
+
+			//disable/enable corresponding buttons
+			//((Button) findViewById(R.id.btn_startserver)).setEnabled(false);
+			//((Button) findViewById(R.id.btn_stopserver)).setEnabled(true);
+			//((EditText) findViewById(R.id.et_portnumber)).setEnabled(false);
 		}
 
 		@Override
@@ -131,7 +142,7 @@ public class ZipservApp extends Activity
 	{
 		if(mBound)
 		{
-			mService.myJNI_StopServers();
+			mService.stop_server();
 		}
 	}
 
@@ -178,6 +189,8 @@ public class ZipservApp extends Activity
 				Log.d(TAG, "- - - Returned filename: " + filename_selected);
 				
 				((TextView)findViewById(R.id.tv_selectedfile)).setText(filename_selected);
+
+				
 			}
 		}else{
 			//help.zip lehetne a backup megoldás

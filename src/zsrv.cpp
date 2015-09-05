@@ -51,50 +51,17 @@ boolean init_winsock2(void)
 const std::string TAG("czsrv");
 const std::string NOT_FOUND(" NOT_FOUND");
 const std::string APPNAME_str("zipserv-dev");
-const std::string HELPZIP("help.zip"); //valahol fixen legyen egy fallback információs zip
 
 
-czsrv::czsrv(const std::string fn = "help.zip", int p = 19000) : archive_name(fn), listen_port(p), request_str(buffer_size, '0')
+czsrv::czsrv() : request_str(buffer_size, '0')
 {
-	if(0 == archive_name.length()) archive_name =  HELPZIP;
-//	listen_port = p;
 	client_socket = 0;
-	run = true; 
+	listen_port = 19000;
 }
 
 czsrv::~czsrv()
 {
 	archive.close();
-}
-
-czsrv::czsrv() : request_str(buffer_size, '0')
-{
-	archive_name = "help.zip";
-	listen_port = 19000;
-
-//	archive_name = fn;
-//	listen_port = p;
-	client_socket = 0;
-	run = true; 
-}
-
-void czsrv::init(const std::string fn, int p)
-{
-
-#ifdef _WIN32
-	init_winsock2();
-#endif
-
-	request_str.reserve(buffer_size);
-	archive_name = fn;
-	listen_port = p;
-	client_socket = 0;
-	run = true; 
-}
-
-void czsrv::stop(void)
-{
-	run = false;
 }
 
 void czsrv::send_NOT_FOUND(const std::string &what)//ez jó
@@ -324,135 +291,144 @@ void czsrv::list_mimetypes(void)
 	}
 }
 
-//static member initialization
-bool czsrv::mstaticStopAll = false;
-
-void czsrv::run_server(void)
+bool czsrv::init(const std::string fn, int p)
 {
-	czsrv::mstaticStopAll = false;
-
-	bool ret = false;
-
-	socket_type listen_socket; //ezen jonnek a keresek
-	struct sockaddr_in server_address;
-
-	//szerver cimenek beallitasa
-	server_address.sin_family = AF_INET;
-	server_address.sin_port = htons(listen_port);
-	server_address.sin_addr.s_addr = htonl(INADDR_LOOPBACK);//INADDR_ANY
-
-	if(INVALID_SOCKET != (listen_socket = socket(AF_INET, SOCK_STREAM, 0))) //domain, type, protocol(tipusonkent egy szokott lenni)
+	run = true;
+	archive_name = fn;
+	if(archive.open(archive_name)) //opening the requested archive
 	{
-		if(0 == bind(listen_socket, (struct sockaddr *) &server_address, sizeof(server_address)))
+
+	#ifdef _WIN32
+		init_winsock2();
+	#endif
+
+		request_str.reserve(buffer_size);
+		archive_name = fn;
+		listen_port = p;
+		client_socket = 0;
+
+		struct sockaddr_in server_address;
+
+		//szerver cimenek beallitasa
+		server_address.sin_family = AF_INET;
+		server_address.sin_port = htons(listen_port);
+		server_address.sin_addr.s_addr = htonl(INADDR_LOOPBACK);//INADDR_ANY
+
+		if(INVALID_SOCKET != (listen_socket = socket(AF_INET, SOCK_STREAM, 0))) //domain, type, protocol(tipusonkent egy szokott lenni)
 		{
-			//ANDROID itt lehetne egy sikeres inicializalas, listening uzenet
-			if(0 == listen(listen_socket, 10))//a kapcsolodasokra figyel a 2. param a varolista hosszat adja meg
+			if(0 == bind(listen_socket, (struct sockaddr *) &server_address, sizeof(server_address)))
 			{
-				//add listen_socket
-				fd_set	open_sockets;// ez az osszes
-				FD_ZERO(&open_sockets);
-				fd_set read_fds; //ezt állitja be a select
+				//ANDROID itt lehetne egy sikeres inicializalas, listening uzenet
+				if(0 == listen(listen_socket, 10))//a kapcsolodasokra figyel a 2. param a varolista hosszat adja meg
+				{
+					//add listen_socket
+					FD_ZERO(&open_sockets);
+					FD_SET(listen_socket, &open_sockets);
+					
+					std::clog << std::endl << "[zipserv started]" << std::endl << std::endl;
+					return true;
 
-				FD_SET(listen_socket, &open_sockets);
-	//			int greatest_socket = listen_socket;
-				
-				std::clog << std::endl << "[zipserv started]" << std::endl << std::endl;
+				}else std::cerr << "listen(): " << strerror_r(errno, error_msg_buffer, error_msg_buffer_size) << std::endl;
+			}else std::cerr << "bind(): " << strerror_r(errno, error_msg_buffer, error_msg_buffer_size) << std::endl;
 
-				while(run)
-				{//loop
+			shutdown(listen_socket, 2); close(listen_socket);
 
-					FD_ZERO(&read_fds);
-					read_fds = open_sockets;
+		}else std::cerr << "socket(): " << strerror_r(errno, error_msg_buffer, error_msg_buffer_size) << std::endl;
+	}
+	return false;	
+}
 
-					struct timeval tv; //timer
-					tv.tv_sec = 5; tv.tv_usec = 0;
+void czsrv::close_server(void)
+{
+	//cleanup
+	std::clog<< "[Cleaning up]" << std::endl;
 
-					int r = select(FD_SETSIZE, &read_fds, NULL, NULL, &tv);
-//					int r = select(FD_SETSIZE, &read_fds, NULL, NULL, NULL);
-					if(r > 0)
-					{//there are sockets to check
+	FD_ZERO(&read_fds); //i think it is just zero the structure not free connections or space
+
+	for(int i = FD_SETSIZE; 0 <= i; i--)
+	{
+		if(!(FD_ISSET(i, &open_sockets))) continue; //this i is not in the set 
+
+		shutdown(i, 2);
+		close(i); //listen_socket is also in this list, the first added
+		FD_CLR(i, &open_sockets);
+
+		std::clog<< "[Closing socket] " << i << std::endl;
+	}
+	FD_ZERO(&open_sockets);
+
+
+	std::clog << "[Server closed]" << std::endl;
+}
+
+void czsrv::stop(void)
+{
+	run = false;	
+}
+
+bool czsrv::run_server(void)
+{
+	if(!run){ run = true; return false; }
+
+		FD_ZERO(&read_fds);
+		read_fds = open_sockets;
+
+		struct timeval tv; //timer
+		tv.tv_sec = 5; tv.tv_usec = 0;
+
+		int r = select(FD_SETSIZE, &read_fds, NULL, NULL, &tv);
+//		int r = select(FD_SETSIZE, &read_fds, NULL, NULL, NULL);
+
+		if(r > 0)
+		{//there are sockets to check
 
 #ifdef _WIN32
-						for(unsigned int j = 0; j < read_fds.fd_count; j++)
-						{
-							socket_type i = read_fds.fd_array[j]; //win32 uses pointers as file descriptors, fd_set is a struct with a counter and a pointer array (winsock2.h)
+			for(unsigned int j = 0; j < read_fds.fd_count; j++)
+			{
+				socket_type i = read_fds.fd_array[j]; //win32 uses pointers as file descriptors, fd_set is a struct with a counter and a pointer array (winsock2.h)
 
 #else //LINUX
 
-						for(socket_type i=0; i <= FD_SETSIZE; i++) //FD_SETSIZE default = 64, not for big servers, in windows too
-		  				{
+			for(socket_type i=0; i <= FD_SETSIZE; i++) //FD_SETSIZE default = 64, not for big servers, in windows too
+			{
 
-							if(!(FD_ISSET(i, &read_fds))) continue; //this i is not in the set 
+				if(!(FD_ISSET(i, &read_fds))) continue; //this i is not in the set 
 #endif
 
-							if(i == listen_socket)
-							{//new connection
+				if(i == listen_socket)
+				{//new connection
 //								struct sockaddr_in client_address;
 //								socklen_t length;
 //								int new_socket = accept(listen_socket, (struct sockaddr *)&client_address, &length);
 
-								int new_socket = accept(listen_socket, NULL, NULL);
-								if(INVALID_SOCKET != new_socket)
-								{
-									std::cout << "[New connection created] " <<  new_socket << std::endl;
-									FD_SET(new_socket, &open_sockets);
+					int new_socket = accept(listen_socket, NULL, NULL);
+					if(INVALID_SOCKET != new_socket)
+					{
+						std::cout << "[New connection created] " <<  new_socket << std::endl;
+						FD_SET(new_socket, &open_sockets);
 
-//									greatest_socket = new_socket;
+						//linger lin; lin.l_onoff = 1; lin.l_linger = 5; if(setsockopt(client_socket, SOL_SOCKET, SO_LINGER, (void*)&lin, sizeof(lin))) perror("setsockopt");
 
-									//linger lin; lin.l_onoff = 1; lin.l_linger = 5; if(setsockopt(client_socket, SOL_SOCKET, SO_LINGER, (void*)&lin, sizeof(lin))) perror("setsockopt");
+					}else std::cerr << "accept(): " << strerror_r(errno, error_msg_buffer, error_msg_buffer_size) << std::endl;// perror("[ accept() ] "); 
 
-								}else std::cerr << "accept(): " << strerror_r(errno, error_msg_buffer, error_msg_buffer_size) << std::endl;// perror("[ accept() ] "); 
+				}else{
+					client_socket = i;
+					if(!webserv()) //socket state changed, try to serve or close
+					{
+						std::clog<< "[Closing socket] " << i << std::endl;
+						shutdown(i, 2);
+						close(i);
+						FD_CLR(i, &open_sockets);
 
-							}else{
-								client_socket = i;
-								if(!webserv()) //socket state changed, try to serve or close
-								{
-									std::clog<< "[Closing socket] " << i << std::endl;
-									shutdown(i, 2);
-									close(i);
-									FD_CLR(i, &open_sockets);
-
-								}
-							}//check socket
-						}//for
-					}else if(r == 0)
-					{//timeout
-						std::clog<< "[Waiting ...]" << std::endl;
-						if(czsrv::mstaticStopAll) run = false; //static variable to stop all server
-					}else{
-						std::cerr << "select(): " << strerror_r(errno, error_msg_buffer, error_msg_buffer_size) << std::endl; //perror("select()");
-						run = false;
 					}
-
-				}//while
-
-				//cleanup
-				std::clog<< "[Cleaning up]" << std::endl;
-
-				FD_ZERO(&read_fds);
-				for(int i = FD_SETSIZE; 0 <= i; i--)
-				{
-					if(!(FD_ISSET(i, &open_sockets))) continue; //this i is not in the set 
-
-					shutdown(i, 2);
-					close(i);
-					FD_CLR(i, &open_sockets);
-
-					std::clog<< "[Closing socket] " << i << std::endl;
-				}
-				FD_ZERO(&open_sockets);
-
-			}else std::cerr << "listen(): " << strerror_r(errno, error_msg_buffer, error_msg_buffer_size) << std::endl;
-		}else std::cerr << "bind(): " << strerror_r(errno, error_msg_buffer, error_msg_buffer_size) << std::endl;
-
-		shutdown(listen_socket, 2); close(listen_socket);
-
-	}else std::cerr << "socket(): " << strerror_r(errno, error_msg_buffer, error_msg_buffer_size) << std::endl;
-	std::clog << "[Server closed]" << std::endl;
+				}//check socket
+			}//for
+		}else if(r == 0)
+		{//timeout
+			std::clog<< "[Waiting ...]" << std::endl;
+		}else{//r < 0 error
+			std::cerr << "select(): " << strerror_r(errno, error_msg_buffer, error_msg_buffer_size) << std::endl; //perror("select()");
+			return false;
+		}
+	return true;
 }
-
-bool czsrv::open(void)
-{
-	return archive.open(archive_name);
-}
-

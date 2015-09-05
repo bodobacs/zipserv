@@ -24,17 +24,20 @@
     android:text="Zip file not selected"
     />
 <Button
+	android:id="@+id/btn_fileselect"
 	android:layout_height="wrap_content"
     android:layout_width="fill_parent"
 	android:text="Choose zip file"
 	android:onClick="onFileChoose" />
 
 <Button
+	android:id="@+id/btn_startserver"
 	android:layout_height="wrap_content"
     android:layout_width="fill_parent"
 	android:text="Start server"
 	android:onClick="onStartServer" />
 <Button
+	android:id="@+id/btn_stopserver"
 	android:layout_height="wrap_content"
     android:layout_width="fill_parent"
 	android:text="Stop server"

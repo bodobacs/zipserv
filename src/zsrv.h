@@ -27,6 +27,9 @@ typedef int socket_type;
 
 class czsrv
 {
+	socket_type listen_socket; //ezen jonnek a keresek
+	fd_set	open_sockets;// all open sockets
+	fd_set read_fds; //ezt állitja be a select
 
 protected:
 	carchive archive;
@@ -41,7 +44,6 @@ protected:
 	static const int buffer_size = 2048;//ennek elégnek kéne lennie, firefoxnak van 8kb
 
 	socket_type client_socket;
-	bool run; 
 
 	void send_NOT_FOUND(const std::string &what);
 	void send_http_error(const std::string &title, const std::string &message);//title has to be a valid http response
@@ -53,21 +55,19 @@ protected:
 	bool webserv(void);
 	void list_mimetypes(void);
 
-	static bool mstaticStopAll; //ugly but no better yet, if true, all instances stop running
+	bool run;
 public:
 
-	void init(const std::string fn, int p);
 
-	czsrv(const std::string fn, int p);
 	czsrv();
 	~czsrv();
 
-	void run_server(void);
+	bool init(const std::string fn, int p);
+	bool run_server(void);
+	void close_server(void);
+
 	void stop(void);
 
-	bool open(void);
-
-	static void stopALL(void){ mstaticStopAll = true; }
 private:
 };
 

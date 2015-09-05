@@ -28,9 +28,20 @@ public class MyService extends Service
 	String str_selfn = "nofileselected";
 	int portnumber = 19000;
 
-	public native void cf_init_zipserver(String zip_fn, int nport);
-	public native void myJNIFunc();
-	public native void myJNI_StopServers();
+	long jni_server_pointer;
+
+	public native void cf_create_server();
+	public native void cf_init_server(String zip_fn, int nport, long pointer);
+	public native void cf_stop_server(long pointer);
+	public native void cf_run_server(long pointer);
+	public native void cf_release_server(long pointer);
+//	public native void myJNIFunc();
+//	public native void myJNI_StopServers();
+
+	public void stop_server()
+	{
+		cf_stop_server(jni_server_pointer);
+	}
 
 	static
 	{
@@ -39,10 +50,10 @@ public class MyService extends Service
 				System.loadLibrary("modchmlib");
 				System.loadLibrary("unzip");
 				System.loadLibrary("jnizsrv");
-				Log.d(TAG, "Myservice constructor complete.");
+				Log.d(TAG, "Myservice constructor complete, libraries loaded.");
         }
         catch (UnsatisfiedLinkError e) {
-				Log.d(TAG, "Cannot load shared library");
+				Log.d(TAG, "Cannot load shared libraries.");
         }
 	}
 	
@@ -74,6 +85,8 @@ public class MyService extends Service
 	{
 		super.onCreate();
 
+		jni_server_pointer = 0;
+
 		Thread serverThread = new Thread(null, mServerRunnable, "MyService");
 
 		serverThread.start();
@@ -87,8 +100,8 @@ public class MyService extends Service
 		str_selfn = intent.getExtras().getString("SelFile");
 		portnumber = intent.getExtras().getInt("PortNum");
 
-		if(intent.hasExtra("SelFile")) Log.d(TAG, "Selected ZIP: " + str_selfn);
-		else Log.d(TAG, "NO EXTRA");
+		if(intent.hasExtra("SelFile")) Log.d(TAG, "Found extra data - SelFile: " + str_selfn);
+		else Log.d(TAG, "Not found Extra data!");
 
 		Intent notiIntent = new Intent(this, ZipservApp.class);
 		PendingIntent pIntent = PendingIntent.getActivity(this, 0, notiIntent, 0);
@@ -96,8 +109,8 @@ public class MyService extends Service
 		NotificationCompat.Builder mBuilder = new NotificationCompat.Builder(this)
 //		Notification noti = new NotificationCompat.Builder(this)
 												.setAutoCancel(true)
-												.setContentTitle("ForegroundTitle")
-												.setContentText("ServiceText")
+												.setContentTitle("Zipserv")
+												.setContentText("Running")
 												.setSmallIcon(R.drawable.evilicon)
 												.setContentIntent(pIntent);
 											//	.build();
@@ -112,6 +125,7 @@ public class MyService extends Service
 	@Override
 	public void onDestroy()
 	{
+
 		super.onDestroy();
 	}
 
@@ -137,7 +151,13 @@ public class MyService extends Service
 		{
 			Log.d(TAG, "--------------- Thread started --------------------");
 
-			cf_init_zipserver(str_selfn, portnumber);
+			cf_create_server();
+
+			cf_init_server(str_selfn, portnumber, jni_server_pointer);
+
+			cf_run_server(jni_server_pointer);
+
+			cf_release_server(jni_server_pointer);
 
 			MyService.this.stopForeground(false); //java ...
 			MyService.this.stopSelf(); //java ...

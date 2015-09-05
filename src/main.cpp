@@ -8,7 +8,7 @@ void signalhandler(int signum) // ???????????????????????? Do not use in android
 {
 	std::clog << "[Signal caught]: " << signum << std::endl;
 
-	server.stop();
+//	server.stop();
 }
 
 int main(int argc, char **argv)
@@ -33,11 +33,9 @@ int main(int argc, char **argv)
 		std::string filename(argv[1]);
 		std::cout << "Starting to serve " << filename << " on port " << port << " ..." << std::endl;
 
-		server.init(filename, port);
-
-		if(server.open())
+		if(server.init(filename, port))
 		{
-			server.run_server();
+			while(server.run_server());
 		}
 	}else{
 

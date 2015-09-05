@@ -11,7 +11,7 @@
 
 const std::string TAG("jnizsrv");
 
-class cmybuf : public std::streambuf
+class cmybuf : public std::streambuf //redirect cout,clog and cerr
 {
 	static const int buffersize = 50;
 	char buffer[buffersize+1]; //+1 for 0 string closing character
@@ -59,53 +59,7 @@ protected:
 	}
 };
 
-
-class czsrv_jni : public czsrv
-{
-	std::streambuf *psysbuf;
-	cmybuf mb;
-
-public:
-	czsrv_jni()
-	{
-		__android_log_print(ANDROID_LOG_VERBOSE, TAG.c_str(), "!! 1. Constructor");
-//		zipname = "/sdcard/cuccok/abs-guide.zip";	
-		__android_log_print(ANDROID_LOG_VERBOSE, TAG.c_str(), "!! 2. Constructor");
-//		listen_port = 19000;
-		__android_log_print(ANDROID_LOG_VERBOSE, TAG.c_str(), "!! 3. Constructor");
 /*
-		psysbuf = std::cerr.rdbuf();
-		std::cerr.rdbuf(&mb);*/
-	}
-
-/*	void init(std::string fn, int p, JNIEnv* env, jobject jo)
-	{
-		mEnv = env;
-		mJobj = jo;
-
-	}
-*/
-	~czsrv_jni()
-	{
-//		std::cerr.rdbuf(psysbuf);
-	}
-
-protected:
-//	jobject mJobj;
-//	JNIEnv* mEnv;
-
-private:
-
-};
-
-//extern "C" {
-
-
-JNIEXPORT void myJNIFunc(JNIEnv* env, jobject obj)
-{
-	__android_log_print(ANDROID_LOG_VERBOSE, "ZipservApp", "myJNIFunc called"); //TAG.c_str()
-}
-
 JNIEXPORT void myJNICallJavaFunc(JNIEnv* env, jobject obj)
 {
     jclass cla = env->GetObjectClass(obj);
@@ -149,56 +103,103 @@ int JNI_call_java_IntFunc(JNIEnv* env, jobject obj, const std::string func_name,
 	}
 	return (int)ret;
 }
+*/
 
-JNIEXPORT void myJNI_StopServers(JNIEnv* env, jobject obj)
+cmybuf mb;
+std::streambuf *pcerrbuf = std::cerr.rdbuf(), *pcoutbuf = std::cout.rdbuf(), *pclogbuf = std::clog.rdbuf();
+
+JNIEXPORT void cf_create_server(JNIEnv *env, jobject obj)
 {
-	__android_log_print(ANDROID_LOG_VERBOSE, TAG.c_str(), "Stop all servers in seconds!"); //TAG.c_str()
+	__android_log_print(ANDROID_LOG_VERBOSE, TAG.c_str(), "server CREATE");
 
-	czsrv::stopALL();
+	std::cerr.rdbuf(&mb);
+	std::cout.rdbuf(&mb);
+	std::clog.rdbuf(&mb);
+
+	czsrv *pserver = new czsrv;
+
+	if(NULL != pserver)
+	{	
+		jclass cls = env->GetObjectClass(obj);
+		jfieldID java_long_id = env->GetFieldID(cls, "jni_server_pointer", "J");
+		env->SetLongField(obj, java_long_id, (long)pserver);
+
+		__android_log_print(ANDROID_LOG_VERBOSE, TAG.c_str(), "server CREATE pointer OK");
+	}
+	//successful class creation checked from MyService.jni_long_pointer in java 
 }
 
-JNIEXPORT void cf_init_zipserver(JNIEnv *env, jobject obj, jstring jstr_fn, jint ji)
+JNIEXPORT void cf_init_server(JNIEnv *env, jobject obj, jstring jstr_fn, jint ji, jlong pointer)
 {
-	__android_log_print(ANDROID_LOG_VERBOSE, TAG.c_str(), "Zip-Server initialize");
+	__android_log_print(ANDROID_LOG_VERBOSE, TAG.c_str(), "server INIT");
 
 	if(NULL != jstr_fn)
 	{
 		const char *cstr = env->GetStringUTFChars(jstr_fn, NULL); //Ez utan kell Release!? Mert itt nem tudja mikor lehet felszabadítani.
-		__android_log_print(ANDROID_LOG_VERBOSE, TAG.c_str(), "zipname from ENV: %s", cstr);
 
-		cmybuf mb;
-		std::streambuf *pcerrbuf = std::cerr.rdbuf(), *pcoutbuf = std::cout.rdbuf(), *pclogbuf = std::clog.rdbuf();
-		std::cerr.rdbuf(&mb);
-		std::cout.rdbuf(&mb);
-		std::clog.rdbuf(&mb);
+		std::string filename(cstr);
+		int portnumber = (int)ji;
 
-		std::cerr << "cout REDIRECTED" << std::endl;
+		__android_log_print(ANDROID_LOG_VERBOSE, TAG.c_str(), "zipname from ENV: %s, port: %d", cstr, portnumber);
 
-		__android_log_print(ANDROID_LOG_VERBOSE, TAG.c_str(), "server CREATE");
-
-		std::cout << "zipname: " << cstr << " , portnumber: " << (int)ji << std::endl;
-
-		czsrv server(cstr, (int)ji);
 
 		env->ReleaseStringUTFChars(jstr_fn, cstr);
 
-	//	server.init("/sdcard/cuccok/abs-guide.zip", 19000, env, obj);
+//		myJNICallJavaFunc(env, obj);
+//		std::cout << "Return JNI_call_java_IntFiunc: " << JNI_call_java_IntFunc(env, obj, "NameOfJAVAFunc", 10) << std::endl;
 
-		__android_log_print(ANDROID_LOG_VERBOSE, TAG.c_str(), "server START");
-
-		myJNICallJavaFunc(env, obj);
-		std::cout << "Return JNI_call_java_IntFiunc: " << JNI_call_java_IntFunc(env, obj, "NameOfJAVAFunc", 10) << std::endl;
-
-		if(server.open())
+		czsrv *pserver = (czsrv *)pointer;
+		if(pserver->init(filename, portnumber))
 		{
-			server.run_server();
+			__android_log_print(ANDROID_LOG_VERBOSE, TAG.c_str(), "czsrv init OK");
+			return;
 		}
+	}
 
-		__android_log_print(ANDROID_LOG_VERBOSE, TAG.c_str(), "server END");
+	__android_log_print(ANDROID_LOG_VERBOSE, TAG.c_str(), "server INIT failed");
+	return;
+}
 
-		std::cerr.rdbuf(pcerrbuf);
-		std::clog.rdbuf(pclogbuf);
-		std::cout.rdbuf(pcoutbuf);
+JNIEXPORT void cf_run_server(JNIEnv *env, jobject obj, jlong pointer)
+{
+	__android_log_print(ANDROID_LOG_VERBOSE, TAG.c_str(), "server RUNNING ...");
+
+
+	std::cerr << "cout REDIRECTED" << std::endl;
+
+	czsrv *pserver = (czsrv *)pointer;
+	if(NULL != pserver)
+	{	
+		while(pserver->run_server());
+	}
+
+	std::cerr.rdbuf(pcerrbuf);
+	std::clog.rdbuf(pclogbuf);
+	std::cout.rdbuf(pcoutbuf);
+
+	__android_log_print(ANDROID_LOG_VERBOSE, TAG.c_str(), "server NOT RUNNING");
+}
+
+JNIEXPORT void cf_stop_server(JNIEnv *env, jobject obj, jlong pointer)
+{
+	__android_log_print(ANDROID_LOG_VERBOSE, TAG.c_str(), "server STOP");
+
+	czsrv *pserver = (czsrv *)pointer;
+	if(NULL != pserver)
+	{	
+		pserver->stop();
+	}
+}
+
+JNIEXPORT void cf_release_server(JNIEnv *env, jobject obj, jlong pointer)
+{
+	__android_log_print(ANDROID_LOG_VERBOSE, TAG.c_str(), "server class RELEASE");
+
+	czsrv *pserver = (czsrv *)pointer;
+	if(NULL != pserver)
+	{
+		pserver->close_server();
+		delete pserver;
 	}
 }
 
@@ -206,14 +207,18 @@ JNIEXPORT void cf_init_zipserver(JNIEnv *env, jobject obj, jstring jstr_fn, jint
 SOOOOOOOOOOO IMPORTANT
 HAVE TO FOLLOW CHANGES OF FUNCTION LIST
 */
-const int method_table_size = 3; //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+const int method_table_size = 5; //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 //these can be called from java code + need declaration in java code
 static JNINativeMethod method_table[] = {
-	{ "myJNI_StopServers", "()V", (void *)myJNI_StopServers },
-	{ "myJNIFunc", "()V", (void *)myJNIFunc },
+	{ "cf_create_server", "()V", (void *)cf_create_server},
+	{ "cf_run_server", "(J)V", (void *)cf_run_server},
+	{ "cf_stop_server", "(J)V", (void *)cf_stop_server},
+	{ "cf_release_server", "(J)V", (void *)cf_release_server},
+//	{ "myJNIFunc", "()V", (void *)myJNIFunc },
 //	{ "myJNICallJavaFunc", "()V", (void *)myJNICallJavaFunc }, nem kell ez csak megkeresi a fuggvenyt a javaban es meghivja, nem kell regisztralni
-	{ "cf_init_zipserver", "(Ljava/lang/String;I)V", (void *)cf_init_zipserver} //(String zip_fn, int nport);
+	{ "cf_init_server", "(Ljava/lang/String;IJ)V", (void *)cf_init_server} //(String zip_fn, int nport);
 };
 
 JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void* reserved)
@@ -237,7 +242,4 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void* reserved)
 	}
     return JNI_VERSION_1_6;
 }
-
-//}//extern "C"
-
 
