@@ -213,6 +213,54 @@ void czsrv::send_error(void)
 	std::cerr << "send_error() called" << std::endl;
 }
 
+//decode encoded URL
+//http://www.w3schools.com/tags/ref_urlencode.asp
+//URLs can only be sent over the Internet using the ASCII character-set.
+//Since URLs often contain characters outside the ASCII set, the URL has to be converted into a valid ASCII format.
+//URL encoding replaces unsafe ASCII characters with a "%" followed by two hexadecimal digits.
+//URLs cannot contain spaces. URL encoding normally replaces a space with a plus (+) sign or with %20.
+void czsrv::decode_request(std::string &req)
+{
+	if(2 < req.length())
+	{
+		std::stringstream ss_out;
+
+		int i = 0;
+		int end = req.length();
+
+		while(i < end)
+		{
+			if(req[i] == '+') ss_out << ' '; //+ -> space
+			else if(req[i] == '%' && 1 < end - i)
+			{
+				//ellenorizni, hogy hex code-e
+				if(
+				('0' <= req[i+1] && '9' >= req[i+1] ||
+					'A' <= req[i+1] && 'F' >= req[i+1] ||
+					'a' <= req[i+1] && 'f' >= req[i+1]
+				) && (
+				'0' <= req[i+2] && '9' >= req[i+2] ||
+					'A' <= req[i+2] && 'F' >= req[i+2] ||
+					'a' <= req[i+2] && 'f' >= req[i+2]
+				))
+				{
+					char anyad[3] = {req[i+1], req[i+2], '\0'};
+					ss_out << char(std::stoi(anyad, 0, 16));
+
+					i += 2;
+				}
+			}else{
+				ss_out << req[i];
+			}
+
+			i++;
+		}
+		std::cout << "req before: " << req << std::endl;
+		req = ss_out.str();
+		std::cout << "req after: " << req << std::endl;
+	}//if
+}
+
 bool czsrv::parse_request(void)
 {
  std::stringstream ss(request_str);
@@ -223,9 +271,11 @@ bool czsrv::parse_request(void)
 	{
 //	std::clog<< "[Found] " << token << std::endl;
 		ss >> URI_str;
+
 		if(0 < URI_str.length())
 		{
 			std::cout << "[URL] " << URI_str << std::endl;
+			decode_request(URI_str);
 			return true;
 		}
 	}
