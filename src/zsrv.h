@@ -52,7 +52,6 @@ protected:
 	void send_error(void);
 	bool parse_request(void);
 	void decode_request(std::string &req);
-	bool find_file(void);
 	bool webserv(void);
 	void list_mimetypes(void);
 

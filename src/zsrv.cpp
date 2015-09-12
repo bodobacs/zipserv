@@ -11,6 +11,7 @@ Mivel marha nehéz olyan értelmezőt írni ami minden http kérést hatékonyan
 #include <cctype>
 #include <sstream>
 #include <iomanip>
+#include <cstdlib>
 
 #include "zsrv.h"
 //Visual Studio _WIN32
@@ -160,6 +161,8 @@ bool czsrv::send_file(void)
 	return lastchunk;
 }
 
+#include <algorithm>
+
 void czsrv::send_file_list(void)
 {	
 	std::clog << "[Sending file list]" << std::endl;
@@ -175,29 +178,38 @@ void czsrv::send_file_list(void)
 		char filename_buffer[filename_buffer_size];
 
 		int f = 0;
-		for(; archive.list_next_file(filename_buffer, filename_buffer_size); f++)
+		for(; archive.list_next_file(filename_buffer, filename_buffer_size); f++) //null terminated string in a std::string?!?!?!
 		{
-			content << "<li><a href=\"" << filename_buffer << "\"/>" << filename_buffer << "</a></li>" << std::endl;
+			//filter
+			std::string fn(filename_buffer); //assume filename_buffer is always null terminated
+			std::transform(fn.begin(), fn.end(), fn.begin(), ::tolower);
 
-			if(400 < content.str().length()) //be a bit bigger than a row
+			if(fn.length() -5 == fn.rfind(".html")
+			|| fn.length() -4 == fn.rfind(".htm"))
 			{
-				response << content.str().length() << "\r\n" << content.str() << "\r\n";
-				if(0 > send(client_socket, response.str().c_str(), response.str().length(), 0)) perror("send");
 
-				response.str(std::string());
-				content.str(std::string());
+				content << "<li><a href=\"" << filename_buffer << "\"/>" << filename_buffer << "</a></li>" << std::endl;
+
+				if(400 < content.str().length()) //be a bit bigger than a row
+				{
+					response << content.str().length() << "\r\n" << content.str() << "\r\n";
+					if(0 > send(client_socket, response.str().c_str(), response.str().length(), 0)) perror("send");
+
+					response.str(std::string());
+					content.str(std::string());
+				}
 			}
 
 		}//for
 
 		if(!f)// first try is failure
 		{
-			content << "<h1>Cannot list zip!</h1>" << std::endl;
+			content << "<h1>Cannot list files!</h1>" << std::endl;
 		}else{
 			content << "<h3>" << f << " entries listed.</h3>" << std::endl;
 		}
 	}else{
-		content << "<h1>Zip is not open!</h1>" << std::endl;
+		content << "<h1>Archive is not open!</h1>" << std::endl;
 	}
 
 	content << "</ol></body></html>" << std::endl;
@@ -245,7 +257,8 @@ void czsrv::decode_request(std::string &req)
 				))
 				{
 					char anyad[3] = {req[i+1], req[i+2], '\0'};
-					ss_out << char(std::stoi(anyad, 0, 16));
+//good too, not implemented in android	ss_out << char(std::stoi(anyad, 0, 16));
+					ss_out << char(strtoul(anyad, NULL, 16));
 
 					i += 2;
 				}
@@ -286,11 +299,6 @@ bool czsrv::parse_request(void)
 	return false;
 }
 
-bool czsrv::find_file(void)
-{
-	return archive.find_file(URI_str.c_str());
-}
-
 bool czsrv::webserv(void)
 {
 	std::clog << std::endl << "[Socket ready, serving client]" << std::endl;
@@ -310,13 +318,13 @@ bool czsrv::webserv(void)
 
 			if(*(URI_str.crbegin()) == '/')
 			{
-				URI_str.append("index.html"); // root dir or DIR
-				if(find_file())	send_file(); else send_file_list();
+//				URI_str.append("index.html"); // root dir or DIR
+				if(archive.find_file(URI_str + "index.html")) send_file(); else send_file_list();
 
-			}else if(find_file()) send_file(); else send_NOT_FOUND(URI_str);
+			}else if(archive.find_file(URI_str)) send_file(); else send_NOT_FOUND(URI_str);
 
 			return true;
-		std::clog << "[RESPONSE END]" << std::endl;
+			std::clog << "[RESPONSE END]" << std::endl;
 	//		sleep(1); //select használata előttig ez NAGYON KELLett
 		}
 
@@ -366,6 +374,9 @@ bool czsrv::init(const std::string fn, int p)
 
 		if(INVALID_SOCKET != (listen_socket = socket(AF_INET, SOCK_STREAM, 0))) //domain, type, protocol(tipusonkent egy szokott lenni)
 		{
+			int optval = 1;
+			if(setsockopt(listen_socket, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval))) perror("setsockopt"); //can reuse port right after close/crash
+
 			if(0 == bind(listen_socket, (struct sockaddr *) &server_address, sizeof(server_address)))
 			{
 				//ANDROID itt lehetne egy sikeres inicializalas, listening uzenet
