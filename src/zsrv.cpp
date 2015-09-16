@@ -62,6 +62,7 @@ czsrv::czsrv() : request_str(buffer_size, '0')
 
 czsrv::~czsrv()
 {
+	cleanup_server();
 	archive.close();
 }
 
@@ -95,12 +96,9 @@ void czsrv::send_http_error(const std::string &title, const std::string &message
 
 bool czsrv::send_file(void)
 {
-	std::clog << "[Sending file]" << std::endl;
+//	std::clog << "[Sending file]" << std::endl;
 
 	bool lastchunk = false;
-
-	const int filename_buffer_size = 1024;
-	char filename_buffer[filename_buffer_size];
 	int chunks = 0;
 	
 	std::string::size_type pos = URI_str.find_last_of('.');
@@ -115,7 +113,7 @@ bool czsrv::send_file(void)
 		filetype.assign("text/html");
 	}
 
-	std::clog << "[mimetype] " << itr->second << std::endl;
+//	std::clog << "[mimetype] " << itr->second << std::endl;
 
 	const int buffsize = 1024;
 	char buffer[buffsize];
@@ -126,10 +124,12 @@ bool czsrv::send_file(void)
 	unsigned int ret;
 	while(0 <= (ret = archive.read(buffer, buffsize)))
 	{
-		if(0 == ret)
+		if(buffsize > ret)
 		{
 			//last chunk
-			response << ret << "\r\n\r\n" << std::flush;
+			response << ret << "\r\n";
+			response.write(buffer, ret);
+			response << "\r\n0\r\n\r\n" << std::flush;
 			lastchunk = true;
 		}else{
 			response << ret << "\r\n";
@@ -152,9 +152,9 @@ bool czsrv::send_file(void)
 		response.str(std::string()); //empty response stream
 	}//while else std::clog  << "[unzRead failed: " << ret << " ]" << std::endl;
 	
-	std::clog << "[" << chunks << " chunks sent]" << std::endl;
+//	std::clog << "[" << chunks << " chunks sent]" << std::endl;
 
-	if(lastchunk) std::clog << "[File sent]" << std::endl;
+	if(lastchunk) std::clog << "File sent: \"" << URI_str << "\"" << std::endl;
 
 	if(0 > ret){ send_NOT_FOUND(URI_str); return false; }
 
@@ -167,7 +167,7 @@ void czsrv::send_file_list(void)
 {	
 	std::clog << "[Sending file list]" << std::endl;
 
-	 std::stringstream response;
+	std::stringstream response;
 	response << "HTTP/1.1 200 OK\r\nServer: " << APPNAME_str << "\r\nContent-Type: text/html\r\n" << "Transfer-Encoding: chunked\r\n\r\n" << std::setbase(16) << std::flush;
 
 	std::stringstream content; content << "<html><header><h1>Generated file list</h1></header><body><ol>" << std::endl;
@@ -268,9 +268,9 @@ void czsrv::decode_request(std::string &req)
 
 			i++;
 		}
-		std::cout << "req before: " << req << std::endl;
+//		std::cout << "req before: " << req << std::endl;
 		req = ss_out.str();
-		std::cout << "req after: " << req << std::endl;
+//		std::cout << "req after: " << req << std::endl;
 	}//if
 }
 
@@ -287,7 +287,7 @@ bool czsrv::parse_request(void)
 
 		if(0 < URI_str.length())
 		{
-			std::cout << "[URL] " << URI_str << std::endl;
+//			std::cout << "[URL] " << URI_str << std::endl;
 			decode_request(URI_str);
 			return true;
 		}
@@ -301,20 +301,20 @@ bool czsrv::parse_request(void)
 
 bool czsrv::webserv(void)
 {
-	std::clog << std::endl << "[Socket ready, serving client]" << std::endl;
+//	std::clog << std::endl << "[Socket ready, serving client]" << std::endl;
 
-	std::clog << "[Getting request]" << std::endl;
+//	std::clog << "[Getting request]" << std::endl;
 	char buffer[buffer_size];
 	int ret;
 
 	if(0 < (ret = recv(client_socket, buffer, buffer_size, 0)))
 	{
 		request_str.assign(buffer, ret);
-		std::clog<< std::endl << "[Request start] " << std::endl << request_str << std::endl << "[Request end]" << std::endl;
+//		std::clog << std::endl << "[Request start] " << std::endl << request_str << std::endl << "[Request end]" << std::endl;
 
 		if(parse_request())
 		{
-		std::clog<< "[RESPONSE START]" << std::endl;
+//		std::clog<< "[RESPONSE START]" << std::endl;
 
 			if(*(URI_str.crbegin()) == '/')
 			{
@@ -324,12 +324,12 @@ bool czsrv::webserv(void)
 			}else if(archive.find_file(URI_str)) send_file(); else send_NOT_FOUND(URI_str);
 
 			return true;
-			std::clog << "[RESPONSE END]" << std::endl;
+//			std::clog << "[RESPONSE END]" << std::endl;
 	//		sleep(1); //select használata előttig ez NAGYON KELLett
 		}
 
 	}else{
-		std::cerr << "[NO REQUEST]" << std::endl;
+//		std::cerr << "[NO REQUEST]" << std::endl;
 
 		if(ret == -1)
 		{
@@ -352,6 +352,7 @@ void czsrv::list_mimetypes(void)
 bool czsrv::init(const std::string fn, int p)
 {
 	run = true;
+
 	archive_name = fn;
 	if(archive.open(archive_name)) //opening the requested archive
 	{
@@ -399,49 +400,61 @@ bool czsrv::init(const std::string fn, int p)
 	return false;	
 }
 
-void czsrv::close_server(void)
-{
-	//cleanup
-	std::clog<< "[Cleaning up]" << std::endl;
 
-	FD_ZERO(&read_fds); //i think it is just zero the structure not free connections or space
+
+//shutdown all sockets, select can end pending transfers
+void czsrv::close_sockets(void)
+{
+	std::clog << "[Shutting down connections ..]" << std::endl;
+
+	for(int i = FD_SETSIZE; 0 <= i; i--)
+	{
+		if(!(FD_ISSET(i, &open_sockets))) continue; //this i is not in the set 
+		shutdown(i, 2);
+	}
+
+	std::clog << "[Shutdown finished]" << std::endl;
+}
+
+//destroying sockets
+void czsrv::cleanup_server(void)
+{
+//	std::clog << "[Closing connections ..]" << std::endl;
 
 	for(int i = FD_SETSIZE; 0 <= i; i--)
 	{
 		if(!(FD_ISSET(i, &open_sockets))) continue; //this i is not in the set 
 
-		shutdown(i, 2);
 		close(i); //listen_socket is also in this list, the first added
 		FD_CLR(i, &open_sockets);
 
-		std::clog<< "[Closing socket] " << i << std::endl;
+//		std::clog << "[Closing socket] " << i << std::endl;
 	}
+
 	FD_ZERO(&open_sockets);
 
-
-	std::clog << "[Server closed]" << std::endl;
+//	std::clog << "[Closing finished]" << std::endl;
 }
 
 void czsrv::stop(void)
 {
+	close_sockets();
 	run = false;	
 }
 
 bool czsrv::run_server(void)
 {
-	if(!run){ run = true; return false; }
+	FD_ZERO(&read_fds);
+	read_fds = open_sockets;
 
-		FD_ZERO(&read_fds);
-		read_fds = open_sockets;
+	struct timeval tv; //timer
+	tv.tv_sec = 5; tv.tv_usec = 0;
 
-		struct timeval tv; //timer
-		tv.tv_sec = 5; tv.tv_usec = 0;
+//	int r = select(FD_SETSIZE, &read_fds, NULL, NULL, &tv);
+	int r = select(FD_SETSIZE, &read_fds, NULL, NULL, NULL);
 
-		int r = select(FD_SETSIZE, &read_fds, NULL, NULL, &tv);
-//		int r = select(FD_SETSIZE, &read_fds, NULL, NULL, NULL);
-
-		if(r > 0)
-		{//there are sockets to check
+	if(r > 0)
+	{//there are sockets to check
 
 #ifdef _WIN32
 			for(unsigned int j = 0; j < read_fds.fd_count; j++)
@@ -465,18 +478,24 @@ bool czsrv::run_server(void)
 					int new_socket = accept(listen_socket, NULL, NULL);
 					if(INVALID_SOCKET != new_socket)
 					{
-						std::cout << "[New connection created] " <<  new_socket << std::endl;
+//						std::cout << "[New connection created] " <<  new_socket << std::endl;
 						FD_SET(new_socket, &open_sockets);
 
 						//linger lin; lin.l_onoff = 1; lin.l_linger = 5; if(setsockopt(client_socket, SOL_SOCKET, SO_LINGER, (void*)&lin, sizeof(lin))) perror("setsockopt");
 
-					}else std::cerr << "accept(): " << strerror_r(errno, error_msg_buffer, error_msg_buffer_size) << std::endl;// perror("[ accept() ] "); 
+					}else{
+						std::cerr << "accept(): " << strerror_r(errno, error_msg_buffer, error_msg_buffer_size) << std::endl;// perror("[ accept() ] "); 
+
+						std::clog << "[Closing listening socket] " << i << std::endl;
+						close_sockets();
+						run = false;
+					}
 
 				}else{
 					client_socket = i;
 					if(!webserv()) //socket state changed, try to serve or close
 					{
-						std::clog<< "[Closing socket] " << i << std::endl;
+						std::clog << "[Closing socket] " << i << std::endl;
 						shutdown(i, 2);
 						close(i);
 						FD_CLR(i, &open_sockets);
@@ -486,10 +505,11 @@ bool czsrv::run_server(void)
 			}//for
 		}else if(r == 0)
 		{//timeout
-			std::clog<< "[Waiting ...]" << std::endl;
+			std::clog << "[Waiting ...]" << std::endl;
 		}else{//r < 0 error
 			std::cerr << "select(): " << strerror_r(errno, error_msg_buffer, error_msg_buffer_size) << std::endl; //perror("select()");
-			return false;
+			run = false;
 		}
-	return true;
+
+	return run;
 }

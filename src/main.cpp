@@ -4,11 +4,11 @@
 
 czsrv server;
 
-void signalhandler(int signum) // ???????????????????????? Do not use in android!
+void signalhandler(int signum) // Do not use in android!
 {
 	std::clog << "[Signal caught]: " << signum << std::endl;
 
-//	server.stop();
+	server.stop();
 }
 
 int main(int argc, char **argv)
@@ -17,7 +17,7 @@ int main(int argc, char **argv)
 
 	if(1 < argc)
 	{
-//	signal(SIGINT, signalhandler); //that little shit makes an "undefined reference in main" error on NDK
+		signal(SIGINT, signalhandler); //that little shit makes an "undefined reference in main" error on NDK
 
 		int port = 19000;
 		
@@ -31,10 +31,10 @@ int main(int argc, char **argv)
 		}
 
 		std::string filename(argv[1]);
-		std::cout << "Starting to serve " << filename << " on port " << port << " ..." << std::endl;
 
 		if(server.init(filename, port))
 		{
+			std::cout << "Starting to serve " << filename << " on port " << port << " ..." << std::endl;
 			while(server.run_server());
 		}
 	}else{

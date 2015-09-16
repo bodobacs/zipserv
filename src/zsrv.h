@@ -55,6 +55,9 @@ protected:
 	bool webserv(void);
 	void list_mimetypes(void);
 
+	void close_sockets(void);
+	void cleanup_server(void);
+
 	bool run;
 public:
 
@@ -64,7 +67,6 @@ public:
 
 	bool init(const std::string fn, int p);
 	bool run_server(void);
-	void close_server(void);
 
 	void stop(void);
 

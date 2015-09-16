@@ -50,50 +50,65 @@ public:
 	}
 
 	bool file_is_open = false;
+
+	bool open_file_in_zip(void)
+	{
+//		std::clog << __LINE__ << ": file_is_open" << std::endl;
+
+		unz_file_info file_info;
+		const int filename_buffer_size = 1024;
+		char filename_buffer[filename_buffer_size];
+
+		int ret = unzGetCurrentFileInfo(zipfile, &file_info, filename_buffer, filename_buffer_size, NULL, 0, NULL, 0);
+		if(UNZ_OK == ret)
+		{
+			if(UNZ_OK == (ret = unzOpenCurrentFile(zipfile)))
+			{
+				file_is_open = true;
+				return true;
+			}else std::cerr << __LINE__ << ": unzOpenCurrentFile" << get_unzip_error(ret) << std::endl;
+		}else std::cerr << __LINE__ << ": unzGetCurrentFileInfo" << get_unzip_error(ret) << std::endl;
+		return false;
+	}
+
 	unsigned int read(char *buffer, const unsigned int &buffer_size)
 	{
-		if(file_is_open)
+		if(file_is_open || open_file_in_zip())
 		{
 			int ret = unzReadCurrentFile(zipfile, buffer, buffer_size);
-			if(0 == ret)
+			if(buffer_size > ret)
 			{
+				if(0 > ret)
+				{
+					std::cerr << __LINE__ << ": unzReadCurrentFile" << get_unzip_error(ret) << std::endl;
+					ret = 0;
+				}
+
 				if(UNZ_OK != unzCloseCurrentFile(zipfile))
 					std::cerr << __LINE__ << ": unzCloseCurrentFile" << get_unzip_error(ret) << std::endl;
+
 				file_is_open = false;
 			}
-
 			return ret;
-
-		}else{//open file
-
-			unz_file_info file_info;
-			const int filename_buffer_size = 1024;
-			char filename_buffer[filename_buffer_size];
-
-			int ret = unzGetCurrentFileInfo(zipfile, &file_info, filename_buffer, filename_buffer_size, NULL, 0, NULL, 0);
-			if(UNZ_OK == ret)
-			{
-				if(UNZ_OK == (ret = unzOpenCurrentFile(zipfile)))
-				{
-					file_is_open = true;
-					return unzReadCurrentFile(zipfile, buffer, buffer_size);
-				}else std::cerr << __LINE__ << ": unzOpenCurrentFile" << get_unzip_error(ret) << std::endl;
-			}else std::cerr << __LINE__ << ": unzGetCurrentFileInfo" << get_unzip_error(ret) << std::endl;
-			
 		}
+		return 0;
 	}
 
 	bool find_file(const std::string &fn)
 	{
 		if(NULL != zipfile && 1 < fn.length())
 		{
-			std::clog << TAG << " find_file: \" " << fn << "\" " << std::flush;
+//			std::clog << TAG << " find_file(\"" << fn << "\") ";
 
 			unzGoToFirstFile(zipfile);
-			if( UNZ_OK == unzLocateFile(zipfile, fn.c_str()+1, 2)) return true;
+			if( UNZ_OK == unzLocateFile(zipfile, fn.c_str()+1, 2))
+			{
+//				std::clog << "found" << std::endl;
+				return true;
+			}
 		}
 
-		std::clog << "not found" << std::endl;
+//		std::clog << "not found" << std::endl;
 		return false;
 	}
 
@@ -121,20 +136,18 @@ public:
 
 	bool open(const std::string &filename)
 	{
-		std::cout << "carchive_zip tries to open: " << filename << std::endl;
+//		std::cout << "carchive_zip tries to open: " << filename << std::endl;
 
 		close();
-
-		std::clog << "[Trying to open: " << filename << "]" << std::endl;
 
 		zipfile = unzOpen(filename.c_str());
 		if(NULL != zipfile)
 		{
-			std::clog << "[" << filename << " found and opened]" << std::endl;
+//			std::clog << "[" << filename << " found and opened]" << std::endl;
 			return true;	
 		}
 
-		std::cerr << "[unzOpen failed]" << std::endl;
+		std::cerr << "Failed to open: " << filename << std::endl;
 		return false;
 	}
 
@@ -165,7 +178,7 @@ public:
 	~carchive_chm()
 	{
 		chm_close(chmfile);
-		std::cout << "chm destructor" << std::endl;
+//		std::cout << "chm destructor" << std::endl;
 	}
 	
 	unsigned int offset = 0;
@@ -178,25 +191,29 @@ public:
 
 	bool find_file(const std::string &fn)
 	{
-		std::cout << TAG << " find_file:\"" << fn << "\"" << std::flush;
+//		std::cout << TAG << " find_file(\"" << fn << "\") ";
 
 		offset = 0; //kereseés után már megint a file elejétől kezdünk olvasni
 
-		if(CHM_RESOLVE_SUCCESS == chm_resolve_object(chmfile, fn.c_str(), &rundata.ui)) return true;
+		if(CHM_RESOLVE_SUCCESS == chm_resolve_object(chmfile, fn.c_str(), &rundata.ui))
+		{
+//			std::clog << "found" << std::endl;
+			return true;
+		}
 		
-		std::cout << " not found" << std::endl;
+//		std::cout << "not found" << std::endl;
 		return false;
 	}
 
 	bool open(const std::string &filename)
 	{
-		std::cout << "chm open " << filename << std::endl;
+//		std::cout << "chm open " << filename << std::endl;
 		chm_close(chmfile);
 
 		chmfile = chm_open(filename.c_str());
 
 		if(NULL != chmfile) return true;
-		std::cout << "Failed to open chm" << std::endl;
+		std::cerr << "Failed to open chm:" << filename << std::endl;
 		return false;
 	}
 
@@ -230,7 +247,7 @@ carchive::carchive()
 
 carchive::~carchive()
 {
-	std::cout << "carchive destructor" << std::endl;
+//	std::cout << "carchive destructor" << std::endl;
 	if(NULL != parchive)
 	{
 		delete parchive;
@@ -266,17 +283,16 @@ bool carchive::open(const std::string &filename)
 		if(checkfiletype(filename, "zip"))
 		{
 			parchive = new carchive_zip();
-			std::cout << "a zip. " << std::endl;
+			std::cout << "a zip " << std::endl;
 		}else std::cout << "an unknown filetype. " << std::endl;
 	}
 
 	if(NULL != parchive)
 	{
-		std::cout << "Opened." << std::endl;
 		return parchive->open(filename);
 	}
 
-	std::cout << "Failed to open." << std::endl;
+	std::cout << "Failed to create carchive instance" << std::endl;
 	return false;
 }
 
@@ -294,7 +310,7 @@ bool carchive::find_file(const std::string &filename)
 unsigned int carchive::read(char *buffer, const unsigned int &buffer_size)
 {
 	if(NULL != parchive) return parchive->read(buffer, buffer_size);
-	return false;
+	return 0;
 }
 
 bool carchive::list_start(void)

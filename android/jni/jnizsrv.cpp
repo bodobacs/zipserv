@@ -198,7 +198,6 @@ JNIEXPORT void cf_release_server(JNIEnv *env, jobject obj, jlong pointer)
 	czsrv *pserver = (czsrv *)pointer;
 	if(NULL != pserver)
 	{
-		pserver->close_server();
 		delete pserver;
 	}
 }
