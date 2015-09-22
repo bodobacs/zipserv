@@ -116,8 +116,9 @@ JNIEXPORT void cf_create_server(JNIEnv *env, jobject obj)
 	std::cout.rdbuf(&mb);
 	std::clog.rdbuf(&mb);
 
-	czsrv *pserver = new czsrv;
+	std::cerr << "cout REDIRECTED" << std::endl;
 
+	czsrv *pserver = new czsrv;
 	if(NULL != pserver)
 	{	
 		jclass cls = env->GetObjectClass(obj);
@@ -129,7 +130,27 @@ JNIEXPORT void cf_create_server(JNIEnv *env, jobject obj)
 	//successful class creation checked from MyService.jni_long_pointer in java 
 }
 
-JNIEXPORT void cf_init_server(JNIEnv *env, jobject obj, jstring jstr_fn, jint ji, jlong pointer)
+JNIEXPORT void cf_release_server(JNIEnv *env, jobject obj, jlong pointer)
+{
+	__android_log_print(ANDROID_LOG_VERBOSE, TAG.c_str(), "server class RELEASE");
+
+	czsrv *pserver = (czsrv *)pointer;
+
+	std::cout << "pointer" << pointer << std::endl;
+	std::cout << "pserver" << pserver << std::endl;
+	if(NULL != pserver)
+	{	
+		delete pserver;
+/*
+		jclass cls = env->GetObjectClass(obj);
+		jfieldID java_long_id = env->GetFieldID(cls, "jni_server_pointer", "J");
+		env->SetLongField(obj, java_long_id, (long)NULL);
+*/
+		__android_log_print(ANDROID_LOG_VERBOSE, TAG.c_str(), "jni_server_pointer deleted");
+	}
+}
+
+JNIEXPORT jboolean cf_init_server(JNIEnv *env, jobject obj, jstring jstr_fn, jint ji, jlong pointer)
 {
 	__android_log_print(ANDROID_LOG_VERBOSE, TAG.c_str(), "server INIT");
 
@@ -152,24 +173,20 @@ JNIEXPORT void cf_init_server(JNIEnv *env, jobject obj, jstring jstr_fn, jint ji
 		if(pserver->init(filename, portnumber))
 		{
 			__android_log_print(ANDROID_LOG_VERBOSE, TAG.c_str(), "czsrv init OK");
-			return;
+			return JNI_TRUE;
 		}
-	}
+	}	
 
 	__android_log_print(ANDROID_LOG_VERBOSE, TAG.c_str(), "server INIT failed");
-	return;
+	return JNI_FALSE;
 }
 
 JNIEXPORT void cf_run_server(JNIEnv *env, jobject obj, jlong pointer)
 {
-	__android_log_print(ANDROID_LOG_VERBOSE, TAG.c_str(), "server RUNNING ...");
-
-
-	std::cerr << "cout REDIRECTED" << std::endl;
-
 	czsrv *pserver = (czsrv *)pointer;
 	if(NULL != pserver)
 	{	
+		__android_log_print(ANDROID_LOG_VERBOSE, TAG.c_str(), "server RUNNING ...");
 		while(pserver->run_server());
 	}
 
@@ -191,17 +208,6 @@ JNIEXPORT void cf_stop_server(JNIEnv *env, jobject obj, jlong pointer)
 	}
 }
 
-JNIEXPORT void cf_release_server(JNIEnv *env, jobject obj, jlong pointer)
-{
-	__android_log_print(ANDROID_LOG_VERBOSE, TAG.c_str(), "server class RELEASE");
-
-	czsrv *pserver = (czsrv *)pointer;
-	if(NULL != pserver)
-	{
-		delete pserver;
-	}
-}
-
 /*
 SOOOOOOOOOOO IMPORTANT
 HAVE TO FOLLOW CHANGES OF FUNCTION LIST
@@ -217,7 +223,7 @@ static JNINativeMethod method_table[] = {
 	{ "cf_release_server", "(J)V", (void *)cf_release_server},
 //	{ "myJNIFunc", "()V", (void *)myJNIFunc },
 //	{ "myJNICallJavaFunc", "()V", (void *)myJNICallJavaFunc }, nem kell ez csak megkeresi a fuggvenyt a javaban es meghivja, nem kell regisztralni
-	{ "cf_init_server", "(Ljava/lang/String;IJ)V", (void *)cf_init_server} //(String zip_fn, int nport);
+	{ "cf_init_server", "(Ljava/lang/String;IJ)Z", (bool *)cf_init_server} //(String zip_fn, int nport);
 };
 
 JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void* reserved)

@@ -31,7 +31,7 @@ public class MyService extends Service
 	long jni_server_pointer;
 
 	public native void cf_create_server();
-	public native void cf_init_server(String zip_fn, int nport, long pointer);
+	public native boolean cf_init_server(String zip_fn, int nport, long pointer);
 	public native void cf_stop_server(long pointer);
 	public native void cf_run_server(long pointer);
 	public native void cf_release_server(long pointer);
@@ -45,7 +45,6 @@ public class MyService extends Service
 
 	static
 	{
-
 		try {
 				System.loadLibrary("modchmlib");
 				System.loadLibrary("unzip");
@@ -83,6 +82,7 @@ public class MyService extends Service
 	@Override
 	public void onCreate()
 	{
+		Log.d(TAG, "onCreate");
 		super.onCreate();
 
 		jni_server_pointer = 0;
@@ -149,20 +149,28 @@ public class MyService extends Service
 	{
 		public void run()
 		{
+			try {
+
 			Log.d(TAG, "--------------- Thread started --------------------");
 
 			cf_create_server();
 
-			cf_init_server(str_selfn, portnumber, jni_server_pointer);
-
-			cf_run_server(jni_server_pointer);
+			if(true == cf_init_server(str_selfn, portnumber, jni_server_pointer))
+			{
+				cf_run_server(jni_server_pointer);
+			}
 
 			cf_release_server(jni_server_pointer);
+			jni_server_pointer = 0;
 
 			MyService.this.stopForeground(false); //java ...
 			MyService.this.stopSelf(); //java ...
 
 			Log.d(TAG, "----------------- Thread end ----------------------");
+
+			} catch (Exception e) {
+				Log.d(TAG, "exception", e);
+			}
 		}
 	};
 

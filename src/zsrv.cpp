@@ -410,7 +410,7 @@ void czsrv::close_sockets(void)
 	for(int i = FD_SETSIZE; 0 <= i; i--)
 	{
 		if(!(FD_ISSET(i, &open_sockets))) continue; //this i is not in the set 
-		shutdown(i, 2);
+		shutdown(i, 0);
 	}
 
 	std::clog << "[Shutdown finished]" << std::endl;
