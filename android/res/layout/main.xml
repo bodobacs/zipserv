@@ -2,57 +2,70 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:orientation="vertical"
     android:layout_width="fill_parent"
-    android:layout_height="fill_parent"
-    >
-<TextView
-	android:id="@+id/t_myserv_output"
-    android:layout_width="fill_parent"
-    android:layout_height="wrap_content"
-    android:padding="5dp"
-    android:text="Server status"
-    />
+    android:layout_height="fill_parent" >
 <View
 	android:id="@+id/separator"
     android:layout_width="fill_parent"
     android:layout_height="1dp"
     android:background="@android:color/darker_gray"/>
 <TextView
+    android:layout_width="fill_parent"
+    android:layout_height="wrap_content"
+    android:padding="5dp"
+    android:text="Selected file" />
+<TextView
 	android:id="@+id/tv_selectedfile"
     android:layout_width="fill_parent"
     android:layout_height="wrap_content"
     android:padding="5dp"
-    android:text="Zip file not selected"
-    />
+    android:text="Select a zip or chm!" />
 <Button
 	android:id="@+id/btn_fileselect"
 	android:layout_height="wrap_content"
     android:layout_width="fill_parent"
-	android:text="Choose zip file"
+	android:text="Choose a file"
 	android:onClick="onFileChoose" />
-
-<Button
-	android:id="@+id/btn_startserver"
-	android:layout_height="wrap_content"
+<TextView
     android:layout_width="fill_parent"
-	android:text="Start server"
-	android:onClick="onStartServer" />
-<Button
-	android:id="@+id/btn_stopserver"
-	android:layout_height="wrap_content"
-    android:layout_width="fill_parent"
-	android:text="Stop server"
-	android:onClick="onStopServer" />
+    android:layout_height="wrap_content"
+    android:padding="5dp"
+    android:text="Port (no need to change)" />
 <EditText
     android:id="@+id/et_portnumber"
     android:layout_width="fill_parent"
-    android:gravity="center"
     android:layout_height="wrap_content"
+    android:gravity="center"
     android:hint="Port number field"
     android:text="19000"
     android:textIsSelectable="true"
     android:maxLength="5"
     android:numeric="decimal"
     android:inputType="numberDecimal" />
+<TextView
+	android:id="@+id/tv_myserv_output"
+    android:layout_width="fill_parent"
+    android:layout_height="wrap_content"
+    android:padding="5dp"
+    android:text="Server status" />
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+	android:orientation="horizontal"
+	android:layout_width="match_parent"
+	android:layout_height="wrap_content">
+<Button
+	android:id="@+id/btn_startserver"
+	android:layout_weight="1"
+	android:layout_height="wrap_content"
+	android:layout_width="wrap_content"
+	android:text="Start server"
+	android:onClick="onStartServer" />
+<Button
+	android:id="@+id/btn_stopserver"
+	android:layout_weight="1"
+	android:layout_height="wrap_content"
+	android:layout_width="wrap_content"
+	android:text="Stop server"
+	android:onClick="onStopServer" />
+</LinearLayout>
 <Button
 	android:id="@+id/btn_opensite"
     android:layout_width="fill_parent"

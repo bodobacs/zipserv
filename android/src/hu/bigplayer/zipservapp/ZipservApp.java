@@ -34,13 +34,18 @@ import android.content.Context;
 import android.os.IBinder;
 import android.content.ServiceConnection;
 
+import android.os.ResultReceiver; //to connect service with activity
+import android.os.Handler;
+
 public class ZipservApp extends Activity
 {
 	String TAG = "ZipservApp";
 
 	public MyService mService;
 	boolean mBound = false;
+	MyResultReceiver mReceiver = null;
 
+	TextView tv_myserv_output = null;
 	TextView tv_selected_file = null;
 	Button btn_file_select = null;
 	Button btn_select_file = null;
@@ -57,6 +62,7 @@ public class ZipservApp extends Activity
 
 		setContentView(R.layout.main);
 
+		tv_myserv_output = (TextView)findViewById(R.id.tv_myserv_output);
 		tv_selected_file = (TextView)findViewById(R.id.tv_selectedfile);
 
 		btn_file_select = (Button)findViewById(R.id.btn_fileselect);
@@ -74,12 +80,14 @@ public class ZipservApp extends Activity
 		btn_open_site = (Button) findViewById(R.id.btn_opensite);
 		btn_open_site.setEnabled(false);
 
-		if(!filename_selected.isEmpty())
+		if(filename_selected.isEmpty())
 		{
-			tv_selected_file.setText(filename_selected);
-		}else{
 			btn_start_server.setEnabled(false);
+		}else{
+			tv_selected_file.setText(filename_selected);
 		}
+
+		mReceiver = new MyResultReceiver(new Handler());
     }
 
 	@Override
@@ -108,18 +116,34 @@ public class ZipservApp extends Activity
 
 	}
 
+	@Override
+	public void onResume() //this activity stops, but the service can run
+	{
+		super.onResume();
+		mReceiver.pause(false);
+	}
+
+	@Override
+	public void onPause() //this activity stops, but the service can run
+	{
+		super.onPause();
+		mReceiver.pause(true);
+	}
+
 	MyService.LocalBinder mBinder;
 
 	private ServiceConnection mConnection = new ServiceConnection() {
 		@Override
 		public void onServiceConnected(ComponentName className, IBinder service)
 		{
+				Log.d(TAG, "onServiceConnected");
 			try{	
 				// We've bound to LocalService, cast the IBinder and get LocalService instance
 				mBinder = (MyService.LocalBinder) service;
 				mService = mBinder.getService();
 
-				Log.d(TAG, "onServiceConnected");
+				mService.mReceiver_activity = mReceiver;
+
 	//			mService.sendNotification("ServiceConnection", "Binded!");
 				mBound = true;
 
@@ -127,8 +151,8 @@ public class ZipservApp extends Activity
 		//		et_port_number.setText(mService.portnumber);
 
 				Log.d(TAG, "mService.str_selfn" + mService.str_selfn + " mService.portnumber: " + mService.portnumber);
-	//HERE should update the buttons disabled/enabled state
 
+				//HERE should update the buttons disabled/enabled state
 				btn_file_select.setEnabled(false);
 				btn_start_server.setEnabled(false);
 				btn_stop_server.setEnabled(true);
@@ -136,10 +160,10 @@ public class ZipservApp extends Activity
 				btn_open_site.setEnabled(true);
 
 				//disable/enable corresponding buttons
-				Log.d(TAG, "onServiceConnected end");
 			} catch (Exception e) {
 				Log.d(TAG, "exception", e);
 			}
+				Log.d(TAG, "onServiceConnected end");
 		}
 
 		@Override
@@ -185,7 +209,7 @@ public class ZipservApp extends Activity
 	{
 		if(mBound) mService.stop_server();
 	}
-
+/*
 	public void serviceSaysStoppedSelf() //called from service, when stopped itself, because it takes some time, no direct destroy
 	{
 		
@@ -197,7 +221,7 @@ public class ZipservApp extends Activity
 
 		Log.d(TAG, "serviceSaysStoppedSelf called");
 	}
-
+*/
 	String localhost = "http://localhost:";
 	int portnumber = 19000;
 
@@ -221,23 +245,49 @@ public class ZipservApp extends Activity
 	@Override
 	protected void onActivityResult(int req, int res, Intent i)//req: kérés azonosító, res: visszatérési kód
 	{
-		Log.d(TAG, "- - - onActivityResult " + "request: " + req + " result: " + res + " RESULT_OK: " + RESULT_OK);
+		Log.d(TAG, "onActivityResult " + "request: " + req + " result: " + res + " RESULT_OK: " + RESULT_OK);
 
 		if(RESULT_OK == res && REQUEST_FILESELECTOR == req)
 		{
 			if(i.hasExtra("SelFile")) //a file kivalsztasa utan megszerzi a file nevet
 			{
 				filename_selected = i.getExtras().getString("SelFile");
-				Log.d(TAG, "- - - Returned filename: " + filename_selected);
+				Log.d(TAG, "Selected filename: " + filename_selected);
 				
-				((TextView)findViewById(R.id.tv_selectedfile)).setText(filename_selected);
-
-				((Button) findViewById(R.id.btn_startserver)).setEnabled(true);
+				tv_selected_file.setText(filename_selected);
+				btn_start_server.setEnabled(true);
 			}
 		}else{
 			//help.zip lehetne a backup megoldás
-			((TextView)findViewById(R.id.tv_selectedfile)).setText("No file");
+		//	tv_selected_file.setText("No file");
 		}
+	}
+
+
+	public class MyResultReceiver extends ResultReceiver {
+
+		public MyResultReceiver(Handler handler){
+		   super(handler);
+		}
+
+		@Override
+		protected void onReceiveResult(int resultCode, Bundle resultData) {
+			// Anybody interested in the results? Well, then feel free to take them.
+			if(!bpause) set_server_status(resultData.getString("msg"));
+		}
+
+		private boolean bpause = false;
+
+		public void pause(boolean b)
+		{
+			bpause = b;
+		}
+	}
+
+	public void set_server_status(String s)
+	{
+		Log.d(TAG, "set_server_status: " + s);
+		tv_myserv_output.setText(s); 
 	}
 
 }

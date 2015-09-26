@@ -18,29 +18,27 @@ import android.os.Binder;
 
 import android.os.ConditionVariable;
 
+import android.os.ResultReceiver; //to connect service with activity
+
 public class MyService extends Service
 {
 	static String TAG = "MyService";
 	private int notifId = 1;
 	private final int UNIQE_NOTI_ID = 13;
 
+	public ResultReceiver mReceiver_activity;
+
 //	private ConditionVariable mCond;
 	String str_selfn = "nofileselected";
 	int portnumber = 19000;
 
-	long jni_server_pointer;
-
-	public native void cf_create_server();
-	public native boolean cf_init_server(String zip_fn, int nport, long pointer);
-	public native void cf_stop_server(long pointer);
-	public native void cf_run_server(long pointer);
-	public native void cf_release_server(long pointer);
-//	public native void myJNIFunc();
-//	public native void myJNI_StopServers();
+	public native boolean cf_init_server(String zip_fn, int nport);
+	public native void cf_stop_server();
+	public native void cf_run_server();
 
 	public void stop_server()
 	{
-		cf_stop_server(jni_server_pointer);
+		cf_stop_server();
 	}
 
 	static
@@ -84,8 +82,6 @@ public class MyService extends Service
 	{
 		Log.d(TAG, "onCreate");
 		super.onCreate();
-
-		jni_server_pointer = 0;
 
 		Thread serverThread = new Thread(null, mServerRunnable, "MyService");
 
@@ -153,15 +149,16 @@ public class MyService extends Service
 
 			Log.d(TAG, "--------------- Thread started --------------------");
 
-			cf_create_server();
-
-			if(true == cf_init_server(str_selfn, portnumber, jni_server_pointer))
+			inform_activity("Server starting");
+			if(true == cf_init_server(str_selfn, portnumber))
 			{
-				cf_run_server(jni_server_pointer);
+				inform_activity("Server running, open your book in browser!");
+				cf_run_server();
+			}else{
+				inform_activity("Server initialization failed");
 			}
 
-			cf_release_server(jni_server_pointer);
-			jni_server_pointer = 0;
+			inform_activity("Server stopped");
 
 			MyService.this.stopForeground(false); //java ...
 			MyService.this.stopSelf(); //java ...
@@ -186,5 +183,16 @@ public class MyService extends Service
 			return i+1;
 	}
 
+	public void inform_activity(String s)
+	{
+		if(mReceiver_activity != null)
+		{
+			Bundle b = new Bundle(); b.putString("msg", s);
+			mReceiver_activity.send(1, b);
+
+			Log.d(TAG, "MSG to Activity: " + s);
+		}
+	}
 }
+
 

@@ -250,7 +250,7 @@ carchive::~carchive()
 //	std::cout << "carchive destructor" << std::endl;
 	if(NULL != parchive)
 	{
-		delete parchive;
+//		delete parchive;
 		parchive = NULL;
 	}
 }
@@ -270,21 +270,29 @@ bool carchive::checkfiletype(const std::string &filename, const std::string &typ
 	return false;
 }
 
+carchive_chm a_chm; 
+carchive_zip a_zip;
+
 bool carchive::open(const std::string &filename)
 {
 	std::cout << filename << " looks like ";
-
+	
+	parchive = NULL;
 	if(checkfiletype(filename, "chm"))
 	{
-		parchive = new carchive_chm();
+//		parchive = new carchive_chm();
+		parchive = &a_chm;
 		std::cout << "a chm. " << std::endl;
 
 	}else{
 		if(checkfiletype(filename, "zip"))
 		{
-			parchive = new carchive_zip();
+//			parchive = new carchive_zip();
+			parchive = &a_zip;
 			std::cout << "a zip " << std::endl;
-		}else std::cout << "an unknown filetype. " << std::endl;
+		}else{
+			std::cout << "an unknown filetype. " << std::endl;
+		}
 	}
 
 	if(NULL != parchive)
@@ -292,38 +300,44 @@ bool carchive::open(const std::string &filename)
 		return parchive->open(filename);
 	}
 
-	std::cout << "Failed to create carchive instance" << std::endl;
+//	std::cout << "Failed to create carchive instance" << std::endl;
 	return false;
 }
 
 void carchive::close(void)
 {
 	if(NULL != parchive) parchive->close();
+	parchive->close();
 }
 
 bool carchive::find_file(const std::string &filename)
 {
-	if(NULL != parchive) return parchive->find_file(filename);
-	return false;
+//	if(NULL != parchive) return parchive->find_file(filename);
+	return parchive->find_file(filename);
+//	return false;
 }
 
 unsigned int carchive::read(char *buffer, const unsigned int &buffer_size)
 {
-	if(NULL != parchive) return parchive->read(buffer, buffer_size);
-	return 0;
+//	if(NULL != parchive) return parchive->read(buffer, buffer_size);
+	return parchive->read(buffer, buffer_size);
+//	return 0;
 }
 
 bool carchive::list_start(void)
 {
-	if(NULL != parchive) return parchive->list_start();
-	return false;
+//	if(NULL != parchive) return parchive->list_start();
+	return parchive->list_start();
+//	return false;
 }
 
 bool carchive::list_next_file(char *buffer, const unsigned int &buffer_size)
 {
-	if(NULL != parchive) return parchive->list_next_file(buffer, buffer_size);
-	return false;
+//	if(NULL != parchive) return parchive->list_next_file(buffer, buffer_size);
+	return parchive->list_next_file(buffer, buffer_size);
+//	return false;
 }
+
 /*
 bool carchive::isok(void)
 {

@@ -27,7 +27,6 @@ public class MyFileSel extends ListActivity
 	private String mPath = Environment.getExternalStorageDirectory().getPath(); // "/"; //actual path to filenames
 	private	int selected_file_index = -1;
 	private ArrayAdapter<String> adapter;
-	private final String str_FTYPE = ""; //".zip"; //extension filter
 
 	public void onCreate(Bundle bundle)
 	{
@@ -35,18 +34,14 @@ public class MyFileSel extends ListActivity
 		Log.d(TAG, "onCreate 1");
 		setContentView(R.layout.mylist);
 
-		Log.d(TAG, "2");
 		mFileList = new ArrayList<String>(); //contains file names, found filenames copied here
 
-		Log.d(TAG, "3");
 		//adapter initialization
 		adapter = new ArrayAdapter(this, android.R.layout.simple_list_item_1, mFileList);
 		setListAdapter(adapter);
 
-		Log.d(TAG, "4");
 		loadFileList(mPath); //list mPath and copies filenames to mFileList
 
-		Log.d(TAG, "5");
 		((TextView)findViewById(R.id.tv_cim)).setText(mPath);
 	}
 
@@ -133,7 +128,7 @@ public class MyFileSel extends ListActivity
 				@Override
 					public boolean accept(File dir, String filename) {
 						File sel = new File(dir, filename);
-						return filename.contains(str_FTYPE) || sel.isDirectory(); //meg nem aktivalt filter
+						return filename.contains(".zip") || filename.contains(".chm") || sel.isDirectory(); //meg nem aktivalt filter
 					}
 			};
 
