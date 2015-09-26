@@ -100,6 +100,7 @@ public class MyFileSel extends ListActivity
 
 	public void onUP(View v)
 	{
+		selected_file_index = -1;
 		File f = new File(mPath);
 		String p;
 		if(null != (p = f.getParent()))

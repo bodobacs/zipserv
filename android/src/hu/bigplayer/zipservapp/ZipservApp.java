@@ -64,28 +64,14 @@ public class ZipservApp extends Activity
 
 		tv_myserv_output = (TextView)findViewById(R.id.tv_myserv_output);
 		tv_selected_file = (TextView)findViewById(R.id.tv_selectedfile);
-
 		btn_file_select = (Button)findViewById(R.id.btn_fileselect);
-		btn_file_select.setEnabled(true);
-
 		btn_start_server = (Button)findViewById(R.id.btn_startserver);
-		btn_start_server.setEnabled(false);
-
 		btn_stop_server = (Button) findViewById(R.id.btn_stopserver);
-		btn_stop_server.setEnabled(false);
-
 		et_port_number = (EditText)findViewById(R.id.et_portnumber);
-		et_port_number.setEnabled(true);
-
 		btn_open_site = (Button) findViewById(R.id.btn_opensite);
-		btn_open_site.setEnabled(false);
 
-		if(filename_selected.isEmpty())
-		{
-			btn_start_server.setEnabled(false);
-		}else{
-			tv_selected_file.setText(filename_selected);
-		}
+		buttons_step_1();
+
 
 		mReceiver = new MyResultReceiver(new Handler());
     }
@@ -152,12 +138,7 @@ public class ZipservApp extends Activity
 
 				Log.d(TAG, "mService.str_selfn" + mService.str_selfn + " mService.portnumber: " + mService.portnumber);
 
-				//HERE should update the buttons disabled/enabled state
-				btn_file_select.setEnabled(false);
-				btn_start_server.setEnabled(false);
-				btn_stop_server.setEnabled(true);
-				et_port_number.setEnabled(false);
-				btn_open_site.setEnabled(true);
+				buttons_step_3();
 
 				//disable/enable corresponding buttons
 			} catch (Exception e) {
@@ -169,11 +150,7 @@ public class ZipservApp extends Activity
 		@Override
 		public void onServiceDisconnected(ComponentName arg0) {
 
-			btn_file_select.setEnabled(true);
-			btn_start_server.setEnabled(true);
-			btn_stop_server.setEnabled(false);
-			et_port_number.setEnabled(true);
-			btn_open_site.setEnabled(false);
+			buttons_step_1();
 
 			Log.d(TAG, "onServiceDisconnected");
 			mBound = false;
@@ -201,7 +178,7 @@ public class ZipservApp extends Activity
 			bindService(i, mConnection, 0);
 
 		}else{//not bound
-			Log.d(TAG, "File not selected or service alreadybound!");
+			Log.d(TAG, "File not selected or service already bound!");
 		}
 	}
 
@@ -209,19 +186,39 @@ public class ZipservApp extends Activity
 	{
 		if(mBound) mService.stop_server();
 	}
-/*
-	public void serviceSaysStoppedSelf() //called from service, when stopped itself, because it takes some time, no direct destroy
+
+	//BUTTONS ENABLED/DISABLED SETS
+	public void buttons_step_1() //file not yet selected
 	{
-		
-		btn_select_file.setEnabled(true);
-		if(tv_selected_file.length() > 0) btn_start_server.setEnabled(true);
+		btn_file_select.setEnabled(true);
+		btn_start_server.setEnabled(false);
 		btn_stop_server.setEnabled(false);
 		et_port_number.setEnabled(true);
 		btn_open_site.setEnabled(false);
 
-		Log.d(TAG, "serviceSaysStoppedSelf called");
+		if(!filename_selected.isEmpty())
+		{
+			btn_start_server.setEnabled(true);
+			tv_selected_file.setText(filename_selected);
+		}
+		
+		Log.d(TAG, "buttons_step_1");
 	}
-*/
+
+//there is a step 2 but, no need for it really
+
+	public void buttons_step_3() //server running
+	{
+		//HERE should update the buttons disabled/enabled state
+		btn_file_select.setEnabled(false);
+		btn_start_server.setEnabled(false);
+		btn_stop_server.setEnabled(true);
+		et_port_number.setEnabled(false);
+		btn_open_site.setEnabled(true);
+
+		Log.d(TAG, "buttons_step_3");
+	}
+
 	String localhost = "http://localhost:";
 	int portnumber = 19000;
 
@@ -254,8 +251,7 @@ public class ZipservApp extends Activity
 				filename_selected = i.getExtras().getString("SelFile");
 				Log.d(TAG, "Selected filename: " + filename_selected);
 				
-				tv_selected_file.setText(filename_selected);
-				btn_start_server.setEnabled(true);
+				buttons_step_1();
 			}
 		}else{
 			//help.zip lehetne a backup megoldás
@@ -273,7 +269,20 @@ public class ZipservApp extends Activity
 		@Override
 		protected void onReceiveResult(int resultCode, Bundle resultData) {
 			// Anybody interested in the results? Well, then feel free to take them.
-			if(!bpause) set_server_status(resultData.getString("msg"));
+			if(!bpause)
+			{
+				switch(resultCode)
+				{
+					case 1:
+						filename_selected = "";
+						tv_selected_file.setText("File read error (file error or password protected)");
+						buttons_step_1();
+						break;
+					default:
+						set_server_status(resultData.getString("msg"));
+						
+				}
+			}
 		}
 
 		private boolean bpause = false;

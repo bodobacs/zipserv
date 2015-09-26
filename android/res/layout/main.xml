@@ -9,27 +9,21 @@
     android:layout_height="1dp"
     android:background="@android:color/darker_gray"/>
 <TextView
-    android:layout_width="fill_parent"
-    android:layout_height="wrap_content"
-    android:padding="5dp"
-    android:text="Selected file" />
-<TextView
 	android:id="@+id/tv_selectedfile"
     android:layout_width="fill_parent"
     android:layout_height="wrap_content"
     android:padding="5dp"
-    android:text="Select a zip or chm!" />
+    android:text="No file selected yet." />
 <Button
 	android:id="@+id/btn_fileselect"
 	android:layout_height="wrap_content"
     android:layout_width="fill_parent"
-	android:text="Choose a file"
+	android:text="Choose an archive file (.zip or .chm)"
 	android:onClick="onFileChoose" />
 <TextView
     android:layout_width="fill_parent"
     android:layout_height="wrap_content"
-    android:padding="5dp"
-    android:text="Port (no need to change)" />
+    android:text="Port (normally no need to change)" />
 <EditText
     android:id="@+id/et_portnumber"
     android:layout_width="fill_parent"
@@ -45,7 +39,6 @@
 	android:id="@+id/tv_myserv_output"
     android:layout_width="fill_parent"
     android:layout_height="wrap_content"
-    android:padding="5dp"
     android:text="Server status" />
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
 	android:orientation="horizontal"
@@ -72,5 +65,9 @@
 	android:layout_height="wrap_content"
 	android:text="@string/name_btn_opensite"
 	android:onClick="onOpenSite" />
+<TextView
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent"
+    android:text="Ads here" />
 </LinearLayout>
 

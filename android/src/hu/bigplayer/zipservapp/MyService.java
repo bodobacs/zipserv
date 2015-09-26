@@ -107,7 +107,7 @@ public class MyService extends Service
 												.setAutoCancel(true)
 												.setContentTitle("Zipserv")
 												.setContentText("Running")
-												.setSmallIcon(R.drawable.evilicon)
+												.setSmallIcon(R.drawable.zserv_icon_bar)
 												.setContentIntent(pIntent);
 											//	.build();
 
@@ -149,16 +149,15 @@ public class MyService extends Service
 
 			Log.d(TAG, "--------------- Thread started --------------------");
 
-			inform_activity("Server starting");
+			inform_activity(0, "Server starting");
 			if(true == cf_init_server(str_selfn, portnumber))
 			{
-				inform_activity("Server running, open your book in browser!");
+				inform_activity(0, "Server running, open your book in browser!");
 				cf_run_server();
+				inform_activity(0, "Server stopped");
 			}else{
-				inform_activity("Server initialization failed");
+				inform_activity(1, "Server initialization failed");
 			}
-
-			inform_activity("Server stopped");
 
 			MyService.this.stopForeground(false); //java ...
 			MyService.this.stopSelf(); //java ...
@@ -183,12 +182,12 @@ public class MyService extends Service
 			return i+1;
 	}
 
-	public void inform_activity(String s)
+	public void inform_activity(int r, String s)
 	{
 		if(mReceiver_activity != null)
 		{
 			Bundle b = new Bundle(); b.putString("msg", s);
-			mReceiver_activity.send(1, b);
+			mReceiver_activity.send(r, b);
 
 			Log.d(TAG, "MSG to Activity: " + s);
 		}
