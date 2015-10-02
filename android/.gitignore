@@ -9,3 +9,4 @@ bin/
 *.properties
 *.txt
 build.xml
+google-play-services_lib/

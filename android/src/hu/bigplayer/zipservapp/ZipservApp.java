@@ -37,6 +37,11 @@ import android.content.ServiceConnection;
 import android.os.ResultReceiver; //to connect service with activity
 import android.os.Handler;
 
+//Ad stuff
+import com.google.android.gms.ads.AdRequest.Builder;
+import com.google.android.gms.ads.AdRequest;
+import com.google.android.gms.ads.AdView;
+
 public class ZipservApp extends Activity
 {
 	String TAG = "ZipservApp";
@@ -71,6 +76,18 @@ public class ZipservApp extends Activity
 		btn_open_site = (Button) findViewById(R.id.btn_opensite);
 
 		buttons_step_1();
+
+
+//AD's init
+
+		AdView adView = (AdView)this.findViewById(R.id.adView);
+		AdRequest adRequest = new AdRequest.Builder()
+		.addTestDevice(AdRequest.DEVICE_ID_EMULATOR)
+		.addTestDevice("TEST_DEVICE_ID")
+		.build();
+		adView.loadAd(adRequest);
+
+//Ad's ^
 
 
 		mReceiver = new MyResultReceiver(new Handler());

@@ -3,62 +3,62 @@
     android:orientation="vertical"
     android:layout_width="fill_parent"
     android:layout_height="fill_parent" >
-<View
+	<View
 	android:id="@+id/separator"
     android:layout_width="fill_parent"
     android:layout_height="1dp"
     android:background="@android:color/darker_gray"/>
-<TextView
+	<TextView
 	android:id="@+id/tv_selectedfile"
     android:layout_width="fill_parent"
     android:layout_height="wrap_content"
     android:padding="5dp"
     android:text="No file selected yet." />
-<Button
+	<Button
 	android:id="@+id/btn_fileselect"
 	android:layout_height="wrap_content"
     android:layout_width="fill_parent"
 	android:text="Choose an archive file (.zip or .chm)"
 	android:onClick="onFileChoose" />
-<TextView
+	<TextView
     android:layout_width="fill_parent"
     android:layout_height="wrap_content"
     android:text="Port (normally no need to change)" />
-<EditText
+	<EditText
     android:id="@+id/et_portnumber"
     android:layout_width="fill_parent"
     android:layout_height="wrap_content"
     android:gravity="center"
     android:hint="Port number field"
     android:text="19000"
-    android:textIsSelectable="true"
     android:maxLength="5"
     android:numeric="decimal"
     android:inputType="numberDecimal" />
-<TextView
+<!--    android:textIsSelectable="true" -->
+	<TextView
 	android:id="@+id/tv_myserv_output"
     android:layout_width="fill_parent"
     android:layout_height="wrap_content"
     android:text="Server status" />
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-	android:orientation="horizontal"
-	android:layout_width="match_parent"
-	android:layout_height="wrap_content">
-<Button
-	android:id="@+id/btn_startserver"
-	android:layout_weight="1"
-	android:layout_height="wrap_content"
-	android:layout_width="wrap_content"
-	android:text="Start server"
-	android:onClick="onStartServer" />
-<Button
-	android:id="@+id/btn_stopserver"
-	android:layout_weight="1"
-	android:layout_height="wrap_content"
-	android:layout_width="wrap_content"
-	android:text="Stop server"
-	android:onClick="onStopServer" />
-</LinearLayout>
+	<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+		android:orientation="horizontal"
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content">
+	<Button
+		android:id="@+id/btn_startserver"
+		android:layout_weight="1"
+		android:layout_height="wrap_content"
+		android:layout_width="wrap_content"
+		android:text="Start server"
+		android:onClick="onStartServer" />
+	<Button
+		android:id="@+id/btn_stopserver"
+		android:layout_weight="1"
+		android:layout_height="wrap_content"
+		android:layout_width="wrap_content"
+		android:text="Stop server"
+		android:onClick="onStopServer" />
+	</LinearLayout>
 <Button
 	android:id="@+id/btn_opensite"
     android:layout_width="fill_parent"
@@ -66,8 +66,17 @@
 	android:text="@string/name_btn_opensite"
 	android:onClick="onOpenSite" />
 <TextView
+	android:id="@+id/tv_myserv_output"
     android:layout_width="fill_parent"
-    android:layout_height="fill_parent"
-    android:text="Ads here" />
+    android:layout_height="wrap_content"
+    android:text="Ad should be below" />
+<com.google.android.gms.ads.AdView
+	xmlns:ads="http://schemas.android.com/apk/res-auto"
+	android:id="@+id/adView"
+	android:layout_width="fill_parent"
+	android:layout_height="wrap_content"
+	ads:adSize="BANNER"
+	ads:adUnitId="@string/banner_ad_unit_id">
+</com.google.android.gms.ads.AdView>
 </LinearLayout>
 
