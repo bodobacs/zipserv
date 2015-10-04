@@ -83,7 +83,7 @@ public class ZipservApp extends Activity
 		AdView adView = (AdView)this.findViewById(R.id.adView);
 		AdRequest adRequest = new AdRequest.Builder()
 		.addTestDevice(AdRequest.DEVICE_ID_EMULATOR)
-		.addTestDevice("TEST_DEVICE_ID")
+		.addTestDevice("6206E352DF65787684994AF229F64E18") //my nexus
 		.build();
 		adView.loadAd(adRequest);
 
