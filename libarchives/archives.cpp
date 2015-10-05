@@ -177,7 +177,7 @@ public:
 
 	~carchive_chm()
 	{
-		chm_close(chmfile);
+		close();
 //		std::cout << "chm destructor" << std::endl;
 	}
 	
@@ -219,7 +219,11 @@ public:
 
 	void close(void)
 	{
-		if(NULL != chmfile) chm_close(chmfile);
+		if(NULL != chmfile)
+		{
+			chm_close(chmfile);
+			chmfile = NULL;
+		}
 	}
 
 	bool list_start(void)
@@ -306,8 +310,11 @@ bool carchive::open(const std::string &filename)
 
 void carchive::close(void)
 {
-	if(NULL != parchive) parchive->close();
-	parchive->close();
+	if(NULL != parchive)
+	{
+		parchive->close();
+		parchive = NULL;
+	}
 }
 
 bool carchive::find_file(const std::string &filename)

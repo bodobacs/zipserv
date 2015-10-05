@@ -3,7 +3,7 @@
 *.jpg
 *.png
 stuff/
-build/
+build*/
 data/
 *.swp
 *.so

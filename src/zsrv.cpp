@@ -51,7 +51,7 @@ boolean init_winsock2(void)
 
 const std::string TAG("czsrv");
 const std::string NOT_FOUND(" NOT_FOUND");
-const std::string APPNAME_str("zipserv-dev");
+const std::string APPNAME_str("zserv-dev");
 
 
 czsrv::czsrv() : request_str(buffer_size, '0')
@@ -376,7 +376,11 @@ bool czsrv::init(const std::string fn, int p)
 		if(INVALID_SOCKET != (listen_socket = socket(AF_INET, SOCK_STREAM, 0))) //domain, type, protocol(tipusonkent egy szokott lenni)
 		{
 			int optval = 1;
+#ifdef WIN32
+			if(setsockopt(listen_socket, SOL_SOCKET, SO_REUSEADDR, (const char *) &optval, sizeof(optval))) perror("setsockopt");
+#else
 			if(setsockopt(listen_socket, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval))) perror("setsockopt"); //can reuse port right after close/crash
+#endif
 
 			if(0 == bind(listen_socket, (struct sockaddr *) &server_address, sizeof(server_address)))
 			{
@@ -387,7 +391,7 @@ bool czsrv::init(const std::string fn, int p)
 					FD_ZERO(&open_sockets);
 					FD_SET(listen_socket, &open_sockets);
 					
-					std::clog << std::endl << "[zipserv started]" << std::endl << std::endl;
+					std::clog << std::endl << "[zserv started]" << std::endl << std::endl;
 					return true;
 
 				}else std::cerr << "listen(): " << strerror_r(errno, error_msg_buffer, error_msg_buffer_size) << std::endl;

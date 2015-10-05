@@ -1,8 +1,11 @@
 // compile with: /D_UNICODE /DUNICODE /DWIN32 /D_WINDOWS /c
 
-#define _WINSOCKAPI_
+#define WIN32_LEAN_AND_LEAN
+//#define _WINSOCKAPI_
 
+#include "winsock2.h"
 #include <windows.h>
+
 #include <process.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -26,12 +29,9 @@ std::string zipname;
 unsigned __stdcall server_thread(void *pargs)
 {
 
-	server.init(zipname, portnumber);
-
-	if(server.open_zipfile())
+	if(server.init(zipname, portnumber))
 	{
-		server.run_server();
-		server.close_zipfile();
+		while(server.run_server());
 	}
 
 	_endthreadex(0);
@@ -81,7 +81,7 @@ INT_PTR CALLBACK WndProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 
 			ofn.lStructSize = sizeof(ofn); // SEE NOTE BELOW
 			ofn.hwndOwner = NULL;
-			ofn.lpstrFilter = "Zip files (*.zip)\0*.zip\0All Files (*.*)\0*.*\0";
+			ofn.lpstrFilter = "Zip files (*.zip)\0*.zip\0Chm files (*.chm)\0*.chm\0All Files (*.*)\0*.*\0";
 			ofn.lpstrFile = szFileName;
 			ofn.nMaxFile = MAX_PATH;
 			ofn.Flags = OFN_EXPLORER | OFN_FILEMUSTEXIST | OFN_HIDEREADONLY|OFN_ALLOWMULTISELECT;
@@ -126,6 +126,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
 	DialogBox( hInstance, MAKEINTRESOURCE(IDD_DIALOG1), NULL, WndProc );
 
-	return NULL;
+	return 0;
 }
 
