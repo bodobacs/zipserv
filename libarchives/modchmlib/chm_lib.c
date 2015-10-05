@@ -67,15 +67,19 @@
 #include <strings.h>
 #endif
 
-#ifdef WIN32
+#ifdef WIN32 
 #include <windows.h>
 #include <malloc.h>
 #ifdef _WIN32_WCE
 #define strcasecmp _stricmp
 #define strncasecmp _strnicmp
 #else
+
+#ifndef __MINGW32__
 #define strcasecmp stricmp
 #define strncasecmp strnicmp
+#endif
+
 #endif
 #else
 /* basic Linux system includes */
@@ -181,7 +185,11 @@ typedef unsigned long long      UInt64;
 #define memcpy __builtin_memcpy
 #define strlen __builtin_strlen
 
-#elif defined(WIN32)
+#endif
+
+/* #elif defined(WIN32) mingw linking problems */
+
+#if defined(WIN32)
 static int ffs(unsigned int val)
 {
     int bit=1, idx=1;

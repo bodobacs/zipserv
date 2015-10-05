@@ -13,7 +13,7 @@ void signalhandler(int signum) // Do not use in android!
 
 int main(int argc, char **argv)
 {
-	std::cout << "zipserv\nBuilt on " __DATE__  " " __TIME__ << std::endl;
+	std::cout << "zserv\nBuilt on " __DATE__  " " __TIME__ << std::endl;
 
 	if(1 < argc)
 	{
@@ -39,7 +39,7 @@ int main(int argc, char **argv)
 		}
 	}else{
 
-		std::cout << "Missing operands\nUsage: zipserv ZIP_FILE [PORT_NUMBER]\n" << std::endl;
+		std::cout << "Missing operands\nUsage: zserv [ZIP|CHM FILE] ([PORT_NUMBER])\n" << std::endl;
 	}
 
 	return 0;

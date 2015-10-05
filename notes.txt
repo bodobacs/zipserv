@@ -5,3 +5,6 @@ restore backup:
 git bundle verify bundlefile
 git clone bundlefile
 
+#select device to install
+export ANDROID_SERIAL=emulator-5554
+ant install
