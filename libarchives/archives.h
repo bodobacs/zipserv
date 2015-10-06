@@ -14,10 +14,10 @@ public:
 
 	virtual bool find_file(const std::string &filename){return false;}
 
-	virtual unsigned int read(char *buffer, const unsigned int &buffer_size){return 0;}
+	virtual unsigned int read(char *buffer, const int &buffer_size){return 0;}
 
 	virtual bool list_start(void){return false;}
-	virtual bool list_next_file(char *buffer, const unsigned int &buffer_size){return false;}
+	virtual bool list_next_file(char *buffer, const int &buffer_size){return false;}
 
 };
 
@@ -34,9 +34,9 @@ public:
 	void close(void);
 
 	bool find_file(const std::string &filename);
-	unsigned int read(char *buffer, const unsigned int &buffer_size);
+	unsigned int read(char *buffer, const int &buffer_size);
 	bool list_start(void);
-	bool list_next_file(char *buffer, const unsigned int &buffer_size);
+	bool list_next_file(char *buffer, const int &buffer_size);
 
 private:
 	carchive_base *parchive;

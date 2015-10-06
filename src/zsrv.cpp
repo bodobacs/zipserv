@@ -26,20 +26,24 @@ errno_t strerror_r(int errnum, char *buffer, size_t buffer_size) //strerror() is
 inline int close(_In_ SOCKET s) { return closesocket(s); }
 
 WSADATA wsaData;
+bool b_init_not_ready = true;
 
 boolean init_winsock2(void)
 {
-	int r;
-
-	r = WSAStartup(MAKEWORD(2,2), &wsaData);
-	if(r != 0)
+	if(b_init_not_ready)
 	{
-		std::cerr << "Windows Socket DLL initializaiton failed. WSA error code: " << r << std::endl;
-		return false;
+		int r;
+
+		r = WSAStartup(MAKEWORD(2,2), &wsaData);
+		if(r != 0)
+		{
+			std::cerr << "Windows Socket DLL initializaiton failed. WSA error code: " << r << std::endl;
+			return false;
+		}
 	}
 
+	b_init_not_ready = false;
 	std::clog << "wsaStartup ok" << std::endl;
-
 	return true;
 }
 
@@ -62,11 +66,12 @@ czsrv::czsrv() : request_str(buffer_size, '0')
 
 czsrv::~czsrv()
 {
-	cleanup_server();
+	cleanup();
 	archive.close();
+
 }
 
-void czsrv::send_NOT_FOUND(const std::string &what)//ez jó
+void czsrv::send_NOT_FOUND(const std::string &what)
 {
  std::stringstream content_ss;
 
@@ -351,6 +356,10 @@ void czsrv::list_mimetypes(void)
 
 bool czsrv::init(const std::string fn, int p)
 {
+//	std::cout << "cout ok" << std::endl;
+//	std::clog << "clog ok" << std::endl;
+//	std::cerr << "cerr ok" << std::endl;
+
 	run = true;
 
 	archive_name = fn;
@@ -391,16 +400,19 @@ bool czsrv::init(const std::string fn, int p)
 					FD_ZERO(&open_sockets);
 					FD_SET(listen_socket, &open_sockets);
 					
-					std::clog << std::endl << "[zserv started]" << std::endl << std::endl;
+					std::clog << std::endl << "zserv is listening on port " << listen_port << std::endl << std::endl;
 					return true;
 
 				}else std::cerr << "listen(): " << strerror_r(errno, error_msg_buffer, error_msg_buffer_size) << std::endl;
 			}else std::cerr << "bind(): " << strerror_r(errno, error_msg_buffer, error_msg_buffer_size) << std::endl;
 
-			shutdown(listen_socket, 2); close(listen_socket);
+			//shutdown(listen_socket, 2);
+			close(listen_socket);
 
 		}else std::cerr << "socket(): " << strerror_r(errno, error_msg_buffer, error_msg_buffer_size) << std::endl;
 	}
+
+	std::cerr << std::endl << "zserv initialization failed" << std::endl << std::endl;
 	return false;	
 }
 
@@ -414,16 +426,16 @@ void czsrv::close_sockets(void)
 	for(int i = FD_SETSIZE; 0 <= i; i--)
 	{
 		if(!(FD_ISSET(i, &open_sockets))) continue; //this i is not in the set 
-		shutdown(i, 0);
+		shutdown(i, 1);
 	}
 
 	std::clog << "[Shutdown finished]" << std::endl;
 }
 
 //destroying sockets
-void czsrv::cleanup_server(void)
+void czsrv::cleanup(void)
 {
-//	std::clog << "[Closing connections ..]" << std::endl;
+	std::clog << "[Closing connections ..]" << std::endl;
 
 	for(int i = FD_SETSIZE; 0 <= i; i--)
 	{
@@ -432,12 +444,17 @@ void czsrv::cleanup_server(void)
 		close(i); //listen_socket is also in this list, the first added
 		FD_CLR(i, &open_sockets);
 
-//		std::clog << "[Closing socket] " << i << std::endl;
+		std::clog << "[Closing socket] " << i << std::endl;
 	}
 
 	FD_ZERO(&open_sockets);
 
-//	std::clog << "[Closing finished]" << std::endl;
+	std::clog << "[Closing finished]" << std::endl;
+
+#ifdef WIN32
+	WSACleanup();
+	b_init_not_ready = true;
+#endif
 }
 
 void czsrv::stop(void)
@@ -451,12 +468,17 @@ bool czsrv::run_server(void)
 	FD_ZERO(&read_fds);
 	read_fds = open_sockets;
 
+#ifdef _WIN32
+//closing sockets on linux causes select() to return but on windows it does not, so on windows if you close all the connections the program hangs in select() (proof: when you try to connect in the browser the program returns!) Do not know about other systems, or versions.
 	struct timeval tv; //timer
 	tv.tv_sec = 5; tv.tv_usec = 0;
 
-//	int r = select(FD_SETSIZE, &read_fds, NULL, NULL, &tv);
+	int r = select(FD_SETSIZE, &read_fds, NULL, NULL, &tv);
+#elif
 	int r = select(FD_SETSIZE, &read_fds, NULL, NULL, NULL);
+#endif
 
+//	std::clog << "Select returned " << std::endl;
 	if(r > 0)
 	{//there are sockets to check
 
@@ -500,7 +522,7 @@ bool czsrv::run_server(void)
 					if(!webserv()) //socket state changed, try to serve or close
 					{
 						std::clog << "[Closing socket] " << i << std::endl;
-						shutdown(i, 2);
+						//shutdown(i, 2);
 						close(i);
 						FD_CLR(i, &open_sockets);
 

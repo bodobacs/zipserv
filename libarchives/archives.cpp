@@ -2,6 +2,7 @@
 #include <iostream>
 #include <map>
 #include <cstring>
+#include <cctype>
 #include "./minizip/unzip.h"
 #include "./modchmlib/chm_lib.h"
 #include "archives.h"
@@ -12,18 +13,23 @@ class carchive_zip : public carchive_base
 	unzFile zipfile;
 
 public:
-	// minizip/unzip return messages
-	const std::map<int, std::string> unzip_return_codes = {
 
-		{ UNZ_OK, 					"UNZ_OK" },
+// minizip/unzip return messages 
+#if defined(_WIN32)
+	const std::map<int, std::string> unzip_return_codes = std::map<int, std::string>{ //error C2797: list initialization inside member initializer list or non-static data member initializer is not implemented
+#else
+// minizip/unzip return messages (this is the standard)
+	const std::map<int, std::string> unzip_return_codes{
+#endif
+
+		{ UNZ_OK, 			"UNZ_OK" },
 		{ UNZ_END_OF_LIST_OF_FILE, 	"UNZ_END_OF_LIST_OF_FILE" },
-		{ UNZ_ERRNO, 				"UNZ_ERRNO" },
-		{ UNZ_EOF,					"UNZ_EOF" },
-		{ UNZ_PARAMERROR, 			"UNZ_PARAMERROR" },
-		{ UNZ_BADZIPFILE, 			"UNZ_BADZIPFILE" },
+		{ UNZ_ERRNO, 			"UNZ_ERRNO" },
+		{ UNZ_EOF,			"UNZ_EOF" },
+		{ UNZ_PARAMERROR, 		"UNZ_PARAMERROR" },
+		{ UNZ_BADZIPFILE, 		"UNZ_BADZIPFILE" },
 		{ UNZ_INTERNALERROR, 		"UNZ_INTERNALERROR"},
-		{ UNZ_CRCERROR, 			"UNZ_CRCERROR"}
-
+		{ UNZ_CRCERROR, 		"UNZ_CRCERROR"}
 	};
 
 	const std::string NOT_FOUND = "NOT_FOUND";
@@ -71,7 +77,7 @@ public:
 		return false;
 	}
 
-	unsigned int read(char *buffer, const unsigned int &buffer_size)
+	unsigned int read(char *buffer, const int &buffer_size)
 	{
 		if(file_is_open || open_file_in_zip())
 		{
@@ -121,7 +127,7 @@ public:
 		return false;
 	}
 
-	bool list_next_file(char *buffer, const unsigned int &buffer_size)
+	bool list_next_file(char *buffer, const int &buffer_size)
 	{
 		if(NULL != buffer)
 		{
@@ -182,9 +188,9 @@ public:
 	}
 	
 	unsigned int offset = 0;
-	unsigned int read(char *buffer, const unsigned int &buffer_size)
+	unsigned int read(char *buffer, const int &buffer_size)
 	{
-		unsigned int len = chm_retrieve_object(chmfile, &rundata.ui, (unsigned char *)buffer, offset, buffer_size);
+		unsigned int len = unsigned int(chm_retrieve_object(chmfile, &rundata.ui, (unsigned char *)buffer, offset, buffer_size));
 		offset += len;
 		return len;
 	}
@@ -231,7 +237,7 @@ public:
 		return chm_list_start(chmfile, &rundata, CHM_ENUMERATE_NORMAL);
 	}
 
-	bool list_next_file(char *buffer, const unsigned int &buffer_size)
+	bool list_next_file(char *buffer, const int &buffer_size)
 	{
 		if(chm_list_next(chmfile, &rundata))
 		{
@@ -324,7 +330,7 @@ bool carchive::find_file(const std::string &filename)
 //	return false;
 }
 
-unsigned int carchive::read(char *buffer, const unsigned int &buffer_size)
+unsigned int carchive::read(char *buffer, const int &buffer_size)
 {
 //	if(NULL != parchive) return parchive->read(buffer, buffer_size);
 	return parchive->read(buffer, buffer_size);
@@ -338,7 +344,7 @@ bool carchive::list_start(void)
 //	return false;
 }
 
-bool carchive::list_next_file(char *buffer, const unsigned int &buffer_size)
+bool carchive::list_next_file(char *buffer, const int &buffer_size)
 {
 //	if(NULL != parchive) return parchive->list_next_file(buffer, buffer_size);
 	return parchive->list_next_file(buffer, buffer_size);

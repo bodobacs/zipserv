@@ -17,7 +17,7 @@ IF(UNIX)
 		include_directories( ${ZLIB_INCLUDE_DIRS} )
 
 		#locally builded library minizip/unzip http://www.winimage.com/zLibDll/unzip11.zip depends on zlib
-		add_library(unzip SHARED ${LIBUNZIP}/unzip.c ${LIBUNZIP}/ioapi.c)
+		add_library(unzip ${LIBUNZIP}/unzip.c ${LIBUNZIP}/ioapi.c)
 		target_link_libraries(unzip ${ZLIB_LIBRARIES})
 
 	endif (ZLIB_FOUND)
@@ -39,13 +39,14 @@ IF(UNIX)
 	add_executable(zserv ${CMAKE_SOURCE_DIR}/main.cpp ${CMAKE_SOURCE_DIR}/zsrv.cpp ${CMAKE_SOURCE_DIR}/zsrv.h ${CMAKE_SOURCE_DIR}/mimetypes.h ${LIBARCHIVES}/archives.h)
 	target_link_libraries(zserv archives)
 
-	SET(CPACK_GENERATOR "DEB")
-	SET(CPACK_DEBIAN_PACKAGE_MAINTAINER "Zoltan Fabian") #required
+	#SET(CPACK_GENERATOR "DEB")
+	#SET(CPACK_DEBIAN_PACKAGE_MAINTAINER "Z") #required
 
-	include (CPack)
+	#include (CPack)
 
 
-ELSE() #IF(UNIX)
+ENDIF(UNIX) #IF(UNIX)
+#ELSE() #IF(UNIX)
 
 # ON WINDOWS I used NMAKE, so in vcvars32.bat command line run:
 # cd zserv\build32
@@ -58,11 +59,11 @@ ELSE() #IF(UNIX)
 
 IF(WIN32)
 
-	IF(MINGW)
-		SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x")
-	ELSE(MINGW)
-		SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Qstd=c++11")
-	ENDIF(MINGW)
+	#	IF(MINGW)
+	#		SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x")
+	#	ELSE(MINGW)
+	#		SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Qstd=c++11")
+	#	ENDIF(MINGW)
 
 
 	set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MD")
@@ -76,11 +77,18 @@ IF(WIN32)
 	include_directories( ${ZLIB_DIR}/include )
 
 	#locally builded library minizip/unzip http://www.winimage.com/zLibDll/unzip11.zip depends on zlib
-	add_library(unzip SHARED ${LIBUNZIP}/unzip.c ${LIBUNZIP}/ioapi.c)
-	target_link_libraries(unzip ${ZLIB_LIBRARIES})
+	add_library(unzip ${LIBUNZIP}/unzip.c ${LIBUNZIP}/ioapi.c)
+	target_link_libraries(unzip ${ZLIB_DIR}/lib/zdll.lib)
 
 	set(LIBCHM ${CMAKE_SOURCE_DIR}/../libarchives/modchmlib)
-	add_library(modchmlib SHARED ${LIBCHM}/chm_lib.c ${LIBCHM}/lzx.c)
+	#switch on __declspec(dllexport) in chm_lib.h
+	add_definitions(-Dshared_EXPORTS)
+	add_library(modchmlib SHARED ${LIBCHM}/chm_lib.c ${LIBCHM}/chm_lib.h ${LIBCHM}/lzx.c)
+
+	##this generates modchmlib's def file to make a dll
+	#include (GenerateExportHeader)
+	#GENERATE_EXPORT_HEADER( modchmlib )
+	#target_include_directories(modchmlib PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 
 	set(LIBARCHIVES ${CMAKE_SOURCE_DIR}/../libarchives)
 	add_library(archives ${LIBARCHIVES}/archives.cpp ${LIBARCHIVES}/archives.h)
@@ -91,18 +99,16 @@ IF(WIN32)
 	#used static libs
 	target_link_libraries(test_archives archives modchmlib unzip)
 	
-	add_library(unzip ${LIBUNZIP}/unzip.c ${LIBUNZIP}/ioapi.c)
-	target_link_libraries(unzip ${ZLIB_DIR}/lib/zdll.lib)
-
 	#product
 	add_executable(zserv_cli zsrv.cpp main.cpp)
 	target_link_libraries(zserv_cli archives wsock32 ws2_32)
 
-	add_executable(zserv WIN32 zsrv.cpp zserv_dialog.rc winmain.cpp)
+	#WIN32 -> WinMain not console program!
+	#	add_executable(zserv WIN32 zsrv.cpp zserv_dialog.rc winmain.cpp)
+	add_executable(zserv zsrv.cpp zserv_dialog.rc winmain.cpp)
 	target_link_libraries(zserv archives wsock32 ws2_32)
 
 ENDIF(WIN32) #IF(WIN32)
-ENDIF(UNIX) #IF(UNIX)
 
 # dependency map
 # zserv < unzip < zlib

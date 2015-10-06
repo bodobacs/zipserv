@@ -56,7 +56,6 @@ protected:
 	void list_mimetypes(void);
 
 	void close_sockets(void);
-	void cleanup_server(void);
 
 	bool run;
 public:
@@ -69,6 +68,7 @@ public:
 	bool run_server(void);
 
 	void stop(void);
+	void cleanup(void);
 
 private:
 };

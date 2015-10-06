@@ -1,3 +1,10 @@
+/* 2015/10/06
+ * modchmlib MODIFIED VERSION
+ * included:
+ * 	macros for windows dll building with cmake
+ * 	functions and strucures for findfirst-findnext style listing
+*/
+
 /* $Id: chm_lib.h,v 1.10 2002/10/09 01:16:33 jedwin Exp $ */
 /***************************************************************************
  *             chm_lib.h - CHM archive manipulation routines               *
@@ -46,6 +53,21 @@
 extern "C" {
 #endif
 
+#ifndef _SHARED_EXPORTS_H__
+#define _SHARED_EXPORTS_H__
+
+#ifdef _WIN32
+    #ifdef shared_EXPORTS
+        #define SHARED_EXPORT __declspec(dllexport)
+    #else
+        #define SHARED_EXPORT __declspec(dllimport)
+    #endif
+#else
+    #define SHARED_EXPORT
+#endif
+
+#endif /* _SHARED_EXPORTS_H__ */
+
 /* RWE 6/12/1002 */
 #ifdef PPC_BSTR
 #include <wtypes.h>
@@ -85,13 +107,13 @@ struct chmUnitInfo
 /* open an ITS archive */
 #ifdef PPC_BSTR
 /* RWE 6/12/2003 */
-struct chmFile* chm_open(BSTR filename);
+struct chmFile SHARED_EXPORT *chm_open(BSTR filename);
 #else
-struct chmFile* chm_open(const char *filename);
+struct chmFile SHARED_EXPORT *chm_open(const char *filename);
 #endif
 
 /* close an ITS archive */
-void chm_close(struct chmFile *h);
+void SHARED_EXPORT chm_close(struct chmFile *h);
 
 /* methods for ssetting tuning parameters for particular file */
 #define CHM_PARAM_MAX_BLOCKS_CACHED 0
@@ -102,12 +124,12 @@ void chm_set_param(struct chmFile *h,
 /* resolve a particular object from the archive */
 #define CHM_RESOLVE_SUCCESS (0)
 #define CHM_RESOLVE_FAILURE (1)
-int chm_resolve_object(struct chmFile *h,
+int SHARED_EXPORT chm_resolve_object(struct chmFile *h,
                        const char *objPath,
                        struct chmUnitInfo *ui);
 
 /* retrieve part of an object from the archive */
-LONGINT64 chm_retrieve_object(struct chmFile *h,
+LONGINT64 SHARED_EXPORT chm_retrieve_object(struct chmFile *h,
                               struct chmUnitInfo *ui,
                               unsigned char *buf,
                               LONGUINT64 addr,
@@ -166,8 +188,8 @@ struct chm_list_rundata
 	char inner_loop_on; //==0 not started, !=0 in the loop
 }; 
 
-int chm_list_start(struct chmFile *h, struct chm_list_rundata *rundata, int what);
-int chm_list_next(struct chmFile *h, struct chm_list_rundata *rundata);
+int SHARED_EXPORT chm_list_start(struct chmFile *h, struct chm_list_rundata *rundata, int what);
+int SHARED_EXPORT chm_list_next(struct chmFile *h, struct chm_list_rundata *rundata);
 
 #ifdef __cplusplus
 }
