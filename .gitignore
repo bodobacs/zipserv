@@ -4,6 +4,7 @@
 *.png
 stuff/
 build*/
+test*/
 data/
 *.swp
 *.so

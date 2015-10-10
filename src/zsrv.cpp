@@ -57,7 +57,6 @@ const std::string TAG("czsrv");
 const std::string NOT_FOUND(" NOT_FOUND");
 const std::string APPNAME_str("zserv-dev");
 
-
 czsrv::czsrv() : request_str(buffer_size, '0')
 {
 	client_socket = 0;
@@ -384,10 +383,11 @@ bool czsrv::init(const std::string fn, int p)
 
 		if(INVALID_SOCKET != (listen_socket = socket(AF_INET, SOCK_STREAM, 0))) //domain, type, protocol(tipusonkent egy szokott lenni)
 		{
-			int optval = 1;
 #ifdef WIN32
+			int optval = TRUE;
 			if(setsockopt(listen_socket, SOL_SOCKET, SO_REUSEADDR, (const char *) &optval, sizeof(optval))) perror("setsockopt");
 #else
+			int optval = 1;
 			if(setsockopt(listen_socket, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval))) perror("setsockopt"); //can reuse port right after close/crash
 #endif
 
@@ -474,7 +474,7 @@ bool czsrv::run_server(void)
 	tv.tv_sec = 5; tv.tv_usec = 0;
 
 	int r = select(FD_SETSIZE, &read_fds, NULL, NULL, &tv);
-#elif
+#else
 	int r = select(FD_SETSIZE, &read_fds, NULL, NULL, NULL);
 #endif
 

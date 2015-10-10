@@ -2,12 +2,16 @@
 SET(CMAKE_SYSTEM_NAME Windows)
 
 # which compilers to use for C and C++
-SET(CMAKE_C_COMPILER i686-w64-mingw32-gcc)
+#SET(CMAKE_C_COMPILER i686-w64-mingw32-gcc)
+SET(CMAKE_C_COMPILER i686-w64-mingw32-g++)
 SET(CMAKE_CXX_COMPILER i686-w64-mingw32-g++)
 SET(CMAKE_RC_COMPILER i686-w64-mingw32-windres)
 
 set(CMAKE_C_FLAGS -m32)
 set(CMAKE_CXX_FLAGS -m32)
+
+set(CMAKE_EXE_LINKER_FLAGS "-static-libgcc -static")
+set(CMAKE_EXE_LINKER_FLAGS "-static-libgcc -static-libstdc++ -static")
 
 # here is the target environment located
 #32bit LIBRARIES!!!!!
@@ -25,5 +29,4 @@ set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
 
 
 #usage:
-#cmake -DCMAKE_TOOLCHAIN_FILE=/toolchain-mingw32-32bit.cmake
-
+#cmake -DCMAKE_TOOLCHAIN_FILE=../src/toolchain-mingw32-32bit.cmake ../src/

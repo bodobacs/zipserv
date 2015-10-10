@@ -15,7 +15,7 @@ class carchive_zip : public carchive_base
 public:
 
 // minizip/unzip return messages 
-#if defined(_WIN32)
+#if defined(_MSVC_VER)
 	const std::map<int, std::string> unzip_return_codes = std::map<int, std::string>{ //error C2797: list initialization inside member initializer list or non-static data member initializer is not implemented
 #else
 // minizip/unzip return messages (this is the standard)
@@ -190,7 +190,7 @@ public:
 	unsigned int offset = 0;
 	unsigned int read(char *buffer, const int &buffer_size)
 	{
-		unsigned int len = unsigned int(chm_retrieve_object(chmfile, &rundata.ui, (unsigned char *)buffer, offset, buffer_size));
+		unsigned int len = chm_retrieve_object(chmfile, &rundata.ui, (unsigned char *)buffer, offset, buffer_size);
 		offset += len;
 		return len;
 	}
@@ -305,13 +305,19 @@ bool carchive::open(const std::string &filename)
 		}
 	}
 
-	if(NULL != parchive)
+	if(NULL != parchive && parchive->open(filename))
 	{
-		return parchive->open(filename);
+		return true;
 	}
 
+	parchive = NULL;
 //	std::cout << "Failed to create carchive instance" << std::endl;
 	return false;
+}
+
+bool carchive::is_open(void)
+{
+	return (NULL != parchive);
 }
 
 void carchive::close(void)
@@ -350,11 +356,3 @@ bool carchive::list_next_file(char *buffer, const int &buffer_size)
 	return parchive->list_next_file(buffer, buffer_size);
 //	return false;
 }
-
-/*
-bool carchive::isok(void)
-{
-	if(NULL != parchive) return true;
-	return false;
-}
-*/

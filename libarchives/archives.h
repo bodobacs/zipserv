@@ -30,6 +30,7 @@ public:
 	carchive();
 	~carchive();
 
+	bool is_open(void);
 	bool open(const std::string &filename);
 	void close(void);
 
