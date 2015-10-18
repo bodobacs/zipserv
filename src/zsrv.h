@@ -33,6 +33,8 @@ class czsrv
 
 protected:
 	carchive archive;
+	bool barchive_ok;
+	bool barchive_used;
 
 	static const int error_msg_buffer_size = 100;
 	char error_msg_buffer[error_msg_buffer_size];
@@ -46,7 +48,7 @@ protected:
 	socket_type client_socket;
 
 	void send_NOT_FOUND(const std::string &what);
-	void send_http_error(const std::string &title, const std::string &message);//title has to be a valid http response
+	void send_feedback_site(const std::string &title, const std::string &message);//title has to be a valid http response
 	bool send_file(void);
 	void send_file_list(void);
 	void send_error(void);
@@ -55,7 +57,7 @@ protected:
 	bool webserv(void);
 	void list_mimetypes(void);
 
-	void close_sockets(void);
+	void shutdown_sockets(void);
 
 	bool run;
 public:
@@ -64,7 +66,8 @@ public:
 	czsrv();
 	~czsrv();
 
-	bool init(const std::string fn, int p);
+	bool open_archive(const std::string fn);
+	bool init(int p);
 	bool run_server(void);
 
 	void stop(void);

@@ -25,6 +25,8 @@ import android.os.Bundle;
 import android.widget.TextView;
 import android.widget.EditText;
 import android.widget.Button;
+import android.text.TextWatcher;
+import android.text.Editable;
 
 import android.app.Service;
 
@@ -48,11 +50,12 @@ public class ZipservApp extends Activity
 
 	public MyService mService;
 	boolean mBound = false;
+	boolean mnewfilechoosen = false;
+
 	MyResultReceiver mReceiver = null;
 
 	TextView tv_myserv_output = null;
 	TextView tv_selected_file = null;
-	Button btn_file_select = null;
 	Button btn_select_file = null;
 	Button btn_start_server = null;
 	Button btn_stop_server = null;
@@ -69,14 +72,10 @@ public class ZipservApp extends Activity
 
 		tv_myserv_output = (TextView)findViewById(R.id.tv_myserv_output);
 		tv_selected_file = (TextView)findViewById(R.id.tv_selectedfile);
-		btn_file_select = (Button)findViewById(R.id.btn_fileselect);
 		btn_start_server = (Button)findViewById(R.id.btn_startserver);
 		btn_stop_server = (Button) findViewById(R.id.btn_stopserver);
 		et_port_number = (EditText)findViewById(R.id.et_portnumber);
 		btn_open_site = (Button) findViewById(R.id.btn_opensite);
-
-		buttons_step_1();
-
 
 //AD's init
 
@@ -89,8 +88,23 @@ public class ZipservApp extends Activity
 
 //Ad's ^
 
+		et_port_number.addTextChangedListener(new TextWatcher()
+		{
+			@Override
+			public void afterTextChanged(Editable s)
+			{
+				portnumber = Integer.parseInt(et_port_number.getText().toString());
+				Log.d(TAG, "portnumber changed");
+			}
+
+			@Override
+			public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+			@Override
+			public void onTextChanged(CharSequence s, int start, int before, int count) {}
+		});
 
 		mReceiver = new MyResultReceiver(new Handler());
+
     }
 
 	@Override
@@ -140,6 +154,7 @@ public class ZipservApp extends Activity
 		public void onServiceConnected(ComponentName className, IBinder service)
 		{
 				Log.d(TAG, "onServiceConnected");
+
 			try{	
 				// We've bound to LocalService, cast the IBinder and get LocalService instance
 				mBinder = (MyService.LocalBinder) service;
@@ -147,15 +162,20 @@ public class ZipservApp extends Activity
 
 				mService.mReceiver_activity = mReceiver;
 
-	//			mService.sendNotification("ServiceConnection", "Binded!");
 				mBound = true;
 
-				tv_selected_file.setText(mService.str_selfn);
-		//		et_port_number.setText(mService.portnumber);
+				//just now returned from file chooser and tries to open that new file
+				et_port_number.setEnabled(false);
 
-				Log.d(TAG, "mService.str_selfn" + mService.str_selfn + " mService.portnumber: " + mService.portnumber);
+				if(mnewfilechoosen)
+				{
+					mService.open_archive(filename_selected);
+					mnewfilechoosen = false;
 
-				buttons_step_3();
+					open_site();
+				}else{
+					tv_selected_file.setText(mService.fn_opened);
+				}
 
 				//disable/enable corresponding buttons
 			} catch (Exception e) {
@@ -167,88 +187,62 @@ public class ZipservApp extends Activity
 		@Override
 		public void onServiceDisconnected(ComponentName arg0) {
 
-			buttons_step_1();
+	//		buttons_step_1();
 
 			Log.d(TAG, "onServiceDisconnected");
 			mBound = false;
 		}
 	};
 
-	//start service
-	public void onStartServer(View v)
-	{
+	public void start_server_service()
+	{//starts the MyService but the real server thread
+
 		Log.d(TAG, "onStartServer ->");
 
-		if(!mBound && !filename_selected.isEmpty())
-		{
-			Log.d(TAG, "filename_selected: " + filename_selected);
-
-			portnumber = Integer.parseInt(et_port_number.getText().toString());
-
+		if(!mBound)
+		{//not bound
 			Intent i = new Intent(this, MyService.class);
-			i.putExtra("SelFile", filename_selected);
-			i.putExtra("PortNum", (int)portnumber);
-
+			i.putExtra("portnum", (int)portnumber);
 			startService(i);
 			
 			//bind service, return checked by serviceconnection callbacks
 			bindService(i, mConnection, 0);
-
-		}else{//not bound
-			Log.d(TAG, "File not selected or service already bound!");
 		}
+	}
+
+	//start service
+	public void onStartServer(View v)
+	{
+		start_server_service();
 	}
 
 	public void onStopServer(View v)
 	{
-		if(mBound) mService.stop_server();
-	}
-
-	//BUTTONS ENABLED/DISABLED SETS
-	public void buttons_step_1() //file not yet selected
-	{
-		btn_file_select.setEnabled(true);
-		btn_start_server.setEnabled(false);
-		btn_stop_server.setEnabled(false);
-		et_port_number.setEnabled(true);
-		btn_open_site.setEnabled(false);
-
-		if(!filename_selected.isEmpty())
-		{
-			btn_start_server.setEnabled(true);
-			tv_selected_file.setText(filename_selected);
+		if(mBound)
+		{ 
+			mService.stop_server();
+			et_port_number.setEnabled(true);
 		}
-		
-		Log.d(TAG, "buttons_step_1");
-	}
-
-//there is a step 2 but, no need for it really
-
-	public void buttons_step_3() //server running
-	{
-		//HERE should update the buttons disabled/enabled state
-		btn_file_select.setEnabled(false);
-		btn_start_server.setEnabled(false);
-		btn_stop_server.setEnabled(true);
-		et_port_number.setEnabled(false);
-		btn_open_site.setEnabled(true);
-
-		Log.d(TAG, "buttons_step_3");
 	}
 
 	String localhost = "http://localhost:";
 	int portnumber = 19000;
 
-	//open site in browser
-	public void onOpenSite(View v)
+	public void open_site()
 	{
-		
 		Intent browserIntent = new Intent(Intent.ACTION_VIEW, android.net.Uri.parse("http://localhost:" + portnumber));
 		startActivity(browserIntent);
 	}
 
+	//open site in browser
+	public void onOpenSite(View v)
+	{
+		start_server_service();
+		open_site();
+	}
+
 	final int REQUEST_FILESELECTOR = 99;
-	String filename_selected = "";
+	String filename_selected;
 
 	public void onFileChoose(View v)
 	{// start file chooser activity
@@ -266,9 +260,8 @@ public class ZipservApp extends Activity
 			if(i.hasExtra("SelFile")) //a file kivalsztasa utan megszerzi a file nevet
 			{
 				filename_selected = i.getExtras().getString("SelFile");
-				Log.d(TAG, "Selected filename: " + filename_selected);
-				
-				buttons_step_1();
+				tv_selected_file.setText(filename_selected);
+				mnewfilechoosen = true;
 			}
 		}else{
 			//help.zip lehetne a backup megoldás
@@ -291,9 +284,9 @@ public class ZipservApp extends Activity
 				switch(resultCode)
 				{
 					case 1:
+					//service tried to open archie but failed
 						filename_selected = "";
-						tv_selected_file.setText("File read error (file error or password protected)");
-						buttons_step_1();
+						tv_selected_file.setText("File read error");
 						break;
 					default:
 						set_server_status(resultData.getString("msg"));
@@ -316,5 +309,5 @@ public class ZipservApp extends Activity
 		tv_myserv_output.setText(s); 
 	}
 
-}
 
+}

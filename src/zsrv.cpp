@@ -26,7 +26,7 @@ errno_t strerror_r(int errnum, char *buffer, size_t buffer_size) //strerror() is
 inline int close(_In_ SOCKET s) { return closesocket(s); }
 
 WSADATA wsaData;
-bool b_init_not_ready = true;
+bool b_init_not_ready = true; //windows socket init
 
 boolean init_winsock2(void)
 {
@@ -61,18 +61,20 @@ czsrv::czsrv() : request_str(buffer_size, '0')
 {
 	client_socket = 0;
 	listen_port = 19000;
+
+	barchive_ok = false;
+	barchive_used = false;
 }
 
 czsrv::~czsrv()
 {
 	cleanup();
 	archive.close();
-
 }
 
 void czsrv::send_NOT_FOUND(const std::string &what)
 {
- std::stringstream content_ss;
+	std::stringstream content_ss;
 
 	content_ss << "<html><head>\n<title>404 Not Found</title>\n</head><body>\n<h1>" << what << " Not Found</h1>\nThe requested URL was not found on this server.\n</body></html>\n";
 
@@ -84,13 +86,13 @@ void czsrv::send_NOT_FOUND(const std::string &what)
 	std::clog << "[NOT FOUND 404 sent] " << std::endl;
 }
 
-void czsrv::send_http_error(const std::string &title, const std::string &message)//title has to be a valid http response
+void czsrv::send_feedback_site(const std::string &title, const std::string &message)//title has to be a valid http response
 {
  std::stringstream content_ss;
 
 	content_ss << "<html><head>\n<title>" << title << "</title>\n</head><body>\n<h1>" << message << "\n</body></html>\n";
 
- std::stringstream response;
+	std::stringstream response;
 	response << "HTTP/1.1 " << title << "\nContent-Length: " << content_ss.str().length() << "\nConnection: close\nContent-Type: text/html\n\n" << content_ss.str();
 
 	if(0 > send(client_socket, response.str().c_str(), response.str().length(), 0)) perror("Send message content");
@@ -319,17 +321,15 @@ bool czsrv::webserv(void)
 		if(parse_request())
 		{
 //		std::clog<< "[RESPONSE START]" << std::endl;
+			if(barchive_ok){
+				if(*(URI_str.crbegin()) == '/')
+				{
+	//				URI_str.append("index.html"); // root dir or DIR
+					if(archive.find_file(URI_str + "index.html")) send_file(); else send_file_list();
 
-			if(*(URI_str.crbegin()) == '/')
-			{
-//				URI_str.append("index.html"); // root dir or DIR
-				if(archive.find_file(URI_str + "index.html")) send_file(); else send_file_list();
-
-			}else if(archive.find_file(URI_str)) send_file(); else send_NOT_FOUND(URI_str);
-
-			return true;
-//			std::clog << "[RESPONSE END]" << std::endl;
-	//		sleep(1); //select használata előttig ez NAGYON KELLett
+				}else if(archive.find_file(URI_str)) send_file(); else send_NOT_FOUND(URI_str);
+			}else send_feedback_site("404 Not Found", "Zserv reader's server is working, but no proper file selected. Choose a zip or a chm file in the application.");
+//			sleep(1); //select használata előttig ez NAGYON KELLett
 		}
 
 	}else{
@@ -353,7 +353,12 @@ void czsrv::list_mimetypes(void)
 	}
 }
 
-bool czsrv::init(const std::string fn, int p)
+bool czsrv::open_archive(const std::string fn)
+{
+	return !barchive_used && (barchive_ok = archive.open(fn));
+}
+
+bool czsrv::init(int p)
 {
 //	std::cout << "cout ok" << std::endl;
 //	std::clog << "clog ok" << std::endl;
@@ -361,8 +366,7 @@ bool czsrv::init(const std::string fn, int p)
 
 	run = true;
 
-	archive_name = fn;
-	if(archive.open(archive_name)) //opening the requested archive
+//	if(barchive_ok) //opening the requested archive
 	{
 
 	#ifdef _WIN32
@@ -370,7 +374,6 @@ bool czsrv::init(const std::string fn, int p)
 	#endif
 
 		request_str.reserve(buffer_size);
-		archive_name = fn;
 		listen_port = p;
 		client_socket = 0;
 
@@ -416,10 +419,8 @@ bool czsrv::init(const std::string fn, int p)
 	return false;	
 }
 
-
-
 //shutdown all sockets, select can end pending transfers
-void czsrv::close_sockets(void)
+void czsrv::shutdown_sockets(void)
 {
 	std::clog << "[Shutting down connections ..]" << std::endl;
 
@@ -459,7 +460,7 @@ void czsrv::cleanup(void)
 
 void czsrv::stop(void)
 {
-	close_sockets();
+	shutdown(listen_socket, 2);
 	run = false;	
 }
 
@@ -510,23 +511,27 @@ bool czsrv::run_server(void)
 						//linger lin; lin.l_onoff = 1; lin.l_linger = 5; if(setsockopt(client_socket, SOL_SOCKET, SO_LINGER, (void*)&lin, sizeof(lin))) perror("setsockopt");
 
 					}else{
-						std::cerr << "accept(): " << strerror_r(errno, error_msg_buffer, error_msg_buffer_size) << std::endl;// perror("[ accept() ] "); 
+						//listening socket not return a new socket, so it gone wrong
+						//std::cerr << "accept(): " << strerror_r(errno, error_msg_buffer, error_msg_buffer_size) << std::endl;// perror("[ accept() ] "); 
 
-						std::clog << "[Closing listening socket] " << i << std::endl;
-						close_sockets();
+						//std::clog << "[Closing listening socket] " << i << std::endl;
+						//close_sockets();
+
+						std::cerr << "Maybe error! Listening socket returned with error!" << i << std::endl;
 						run = false;
 					}
-
 				}else{
 					client_socket = i;
+					barchive_used = true;
 					if(!webserv()) //socket state changed, try to serve or close
 					{
 						std::clog << "[Closing socket] " << i << std::endl;
 						//shutdown(i, 2);
+						//no more readable data
 						close(i);
 						FD_CLR(i, &open_sockets);
-
 					}
+					barchive_used = false;
 				}//check socket
 			}//for
 		}else if(r == 0)
@@ -539,3 +544,4 @@ bool czsrv::run_server(void)
 
 	return run;
 }
+

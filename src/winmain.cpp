@@ -30,20 +30,31 @@ using namespace std;
 czsrv server;
 int portnumber = 19000;
 std::string zipname;
+bool exit_on_stop = false;
 
 unsigned __stdcall server_thread(void *pargs)
 {
-
-	if(server.init(zipname, portnumber))
+	if(!running)
 	{
-		running = true;
-		SendMessage(g_hwnd, WM_SERVER, 0, 0);
-		while(server.run_server());
-		server.cleanup();
-	}
+		if(server.init(zipname, portnumber))
+		{
+			running = true;
+			SendMessage(g_hwnd, WM_SERVER, 0, 0);
 
-	running = false;
-	SendMessage(g_hwnd, WM_SERVER, 0, 0);
+			std::stringstream ss; ss << "Server running. Port: " << portnumber << std::endl;
+			SetDlgItemText(g_hwnd, ID_STATUS, ss.str().c_str());
+			while(server.run_server());
+			server.cleanup();
+		}else{
+			portnumber = (portnumber + 1 < 19100) ? portnumber + 1 : 19000;
+		}
+
+		std::stringstream ss; ss << "Server stopped" << portnumber << std::endl;
+		SetDlgItemText(g_hwnd, ID_STATUS, ss.str().c_str());
+
+		running = false;
+		SendMessage(g_hwnd, WM_SERVER, 0, 0);
+	}
 
 	return 0;
 
@@ -51,7 +62,7 @@ unsigned __stdcall server_thread(void *pargs)
 
 INT_PTR CALLBACK WndProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 {
-g_hwnd = hDlg;
+	g_hwnd = hDlg;
 	switch (message) {
 	case WM_INITDIALOG:
 		return (TRUE);
@@ -66,10 +77,14 @@ g_hwnd = hDlg;
 		}else{
 			CloseHandle(server_thread_handle);
 			server_thread_handle = NULL;
+
 			EnableWindow( GetDlgItem( hDlg, ID_START ), TRUE);
 			EnableWindow( GetDlgItem( hDlg, ID_STOP), FALSE);
 			EnableWindow( GetDlgItem( hDlg, ID_BROWSER), FALSE);
+
 			SetDlgItemText(hDlg, ID_STOP, "Stop server");
+
+		   if(exit_on_stop) EndDialog(hDlg, TRUE);
 		}
 	  return (TRUE);
 			
@@ -92,7 +107,7 @@ g_hwnd = hDlg;
 
 					ofn.lStructSize = sizeof(ofn); // SEE NOTE BELOW
 					ofn.hwndOwner = NULL;
-					ofn.lpstrFilter = "Zip files (*.zip)\0*.zip\0Chm files (*.chm)\0*.chm\0All Files (*.*)\0*.*\0";
+					ofn.lpstrFilter = "Known file formats: .zip, .chm\0*.zip;*.chm\0Zip files (*.zip)\0*.zip\0Chm files (*.chm)\0*.chm\0All Files (*.*)\0*.*\0";
 					ofn.lpstrFile = szFileName;
 					ofn.nMaxFile = MAX_PATH;
 					ofn.Flags = OFN_EXPLORER | OFN_FILEMUSTEXIST | OFN_HIDEREADONLY|OFN_ALLOWMULTISELECT;
@@ -103,8 +118,8 @@ g_hwnd = hDlg;
 						zipname.assign(szFileName);
 						if(zipname.length() > 0)
 						{
-							EnableWindow( GetDlgItem( hDlg, ID_START ), TRUE);
 							SetDlgItemText(hDlg, ID_ZIPNAME, zipname.c_str());
+							if(!running) EnableWindow( GetDlgItem( hDlg, ID_START ), TRUE);
 						}
 					}
 				}
@@ -121,11 +136,23 @@ g_hwnd = hDlg;
 
 			case IDOK:
 			case IDCANCEL:
-				server.stop();	
-				WaitForSingleObject(server_thread_handle, INFINITE);
-				
-			       EndDialog(hDlg, TRUE);
-			       return (TRUE);
+				if(running)
+				{	
+					server.stop();
+					exit_on_stop = true;
+					SetDlgItemText(hDlg, IDOK, "Stopping server ...");
+
+					//disable all buttons
+					EnableWindow( GetDlgItem( hDlg, ID_SELECT), FALSE);
+					EnableWindow( GetDlgItem( hDlg, ID_START ), FALSE);
+					EnableWindow( GetDlgItem( hDlg, ID_STOP), FALSE);
+					EnableWindow( GetDlgItem( hDlg, ID_BROWSER), FALSE);
+					EnableWindow( GetDlgItem( hDlg, IDOK ), FALSE);
+				}else{
+				   EndDialog(hDlg, TRUE);
+				}
+
+			   return (TRUE);
 		}//WM_COMMAND switch
 		break;
 	 }//message

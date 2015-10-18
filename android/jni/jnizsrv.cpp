@@ -105,32 +105,24 @@ int JNI_call_java_IntFunc(JNIEnv* env, jobject obj, const std::string func_name,
 }
 */
 
+//rerouting cout, cerr, clog
 cmybuf mb;
 std::streambuf *pcerrbuf = std::cerr.rdbuf(), *pcoutbuf = std::cout.rdbuf(), *pclogbuf = std::clog.rdbuf();
 
 czsrv server;
 
-JNIEXPORT jboolean cf_init_server(JNIEnv *env, jobject obj, jstring jstr_fn, jint ji)
+JNIEXPORT jboolean cf_init_server(JNIEnv *env, jobject obj, jint ji)
 {
 	__android_log_print(ANDROID_LOG_VERBOSE, TAG.c_str(), "server INIT");
 
-	if(NULL != jstr_fn)
+	int portnumber = (int)ji;
+
+	__android_log_print(ANDROID_LOG_VERBOSE, TAG.c_str(), "ENV port: %d", portnumber);
+
+	if(server.init(portnumber))
 	{
-		const char *cstr = env->GetStringUTFChars(jstr_fn, NULL); //Ez utan kell Release!? Mert itt nem tudja mikor lehet felszabadítani.
-
-		std::string filename(cstr);
-		int portnumber = (int)ji;
-
-		__android_log_print(ANDROID_LOG_VERBOSE, TAG.c_str(), "zipname from ENV: %s, port: %d", cstr, portnumber);
-
-		env->ReleaseStringUTFChars(jstr_fn, cstr);
-
-		if(server.init(filename, portnumber))
-		{
-			__android_log_print(ANDROID_LOG_VERBOSE, TAG.c_str(), "czsrv init OK");
-			return JNI_TRUE;
-		}
-	}	
+		return JNI_TRUE;
+	}
 
 	__android_log_print(ANDROID_LOG_VERBOSE, TAG.c_str(), "server INIT failed");
 	return JNI_FALSE;
@@ -140,6 +132,8 @@ JNIEXPORT void cf_run_server(JNIEnv *env, jobject obj, jlong pointer)
 {
 	__android_log_print(ANDROID_LOG_VERBOSE, TAG.c_str(), "server RUNNING ...");
 	while(server.run_server());
+
+	server.cleanup();
 
 	std::cerr.rdbuf(pcerrbuf);
 	std::clog.rdbuf(pclogbuf);
@@ -154,19 +148,40 @@ JNIEXPORT void cf_stop_server(JNIEnv *env, jobject obj)
 	server.stop();
 }
 
+JNIEXPORT jboolean native_open_archive(JNIEnv *env, jobject obj, jstring jstr_fn)
+{
+	__android_log_print(ANDROID_LOG_VERBOSE, TAG.c_str(), "Open archive file");
+
+	if(NULL != jstr_fn)
+	{
+		const char *cstr = env->GetStringUTFChars(jstr_fn, NULL); //Ez utan kell Release!? Mert itt nem tudja mikor lehet felszabadítani.
+
+		std::string filename(cstr);
+
+		env->ReleaseStringUTFChars(jstr_fn, cstr);
+
+		if(server.open_archive(filename))
+		{
+			return JNI_TRUE;
+		}
+	}	
+	return JNI_FALSE;
+}
+
 /*
 SOOOOOOOOOOO IMPORTANT
 HAVE TO FOLLOW CHANGES OF FUNCTION LIST
 */
 
-const int method_table_size = 3; //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+const int method_table_size = 4; //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 //these can be called from java code + need declaration in java code
 static JNINativeMethod method_table[] = {
 	{ "cf_run_server", "()V", (void *)cf_run_server},
 	{ "cf_stop_server", "()V", (void *)cf_stop_server},
 //	{ "myJNICallJavaFunc", "()V", (void *)myJNICallJavaFunc }, nem kell ez csak megkeresi a fuggvenyt a javaban es meghivja, nem kell regisztralni
-	{ "cf_init_server", "(Ljava/lang/String;I)Z", (bool *)cf_init_server} //(String zip_fn, int nport);
+	{ "cf_init_server", "(I)Z", (bool *)cf_init_server}, //(String zip_fn, int nport);
+	{ "native_open_archive", "(Ljava/lang/String;)Z", (bool *)native_open_archive} //(String zip_fn, int nport);
 };
 
 JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void* reserved)

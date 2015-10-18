@@ -8,3 +8,4 @@
 #define ID_BROWSER                              40002
 #define ID_ZIPNAME                              40003
 #define ID_STOP                                 40004
+#define ID_STATUS								40005

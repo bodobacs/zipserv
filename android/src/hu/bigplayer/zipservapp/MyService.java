@@ -23,22 +23,47 @@ import android.os.ResultReceiver; //to connect service with activity
 public class MyService extends Service
 {
 	static String TAG = "MyService";
-	private int notifId = 1;
 	private final int UNIQE_NOTI_ID = 13;
 
 	public ResultReceiver mReceiver_activity;
 
 //	private ConditionVariable mCond;
-	String str_selfn = "nofileselected";
-	int portnumber = 19000;
+	String fn_opened; //successfully opened archive file
+	public int portnumber;
+	public boolean bthreadrunning = false;
 
-	public native boolean cf_init_server(String zip_fn, int nport);
+	public native boolean cf_init_server(int nport);
 	public native void cf_stop_server();
 	public native void cf_run_server();
+	public native boolean native_open_archive(String jstr_fn);
 
 	public void stop_server()
 	{
 		cf_stop_server();
+	}
+
+	public boolean open_archive(String s)
+	{
+		if(!s.isEmpty() && native_open_archive(s))
+		{
+			fn_opened = s;
+			inform_activity(0, "Archive opened successfully");
+			sendNotification(s, "http://localhost:" + portnumber);
+			return true;
+		}
+
+		sendNotification(s, "http://localhost:" + portnumber);
+		inform_activity(0, "Archive not opened");
+		return false;
+	}
+
+	public void start_to_serve()
+	{//starts the real separate thread running server cycle
+		if(!bthreadrunning)
+		{
+			Thread serverThread = new Thread(null, mServerRunnable, "MyService");
+			serverThread.start();
+		}
 	}
 
 	static
@@ -56,16 +81,19 @@ public class MyService extends Service
 	
 	public void sendNotification(String sTitle, String sText)
 	{
-		Intent intent = new Intent();//this, ActNotif.class); //saját magát nyitja meg
-		PendingIntent pIntent = PendingIntent.getActivity(this, 0, intent, 0);
+		Intent notiIntent = new Intent(this, ZipservApp.class);
+		PendingIntent pIntent = PendingIntent.getActivity(this, 0, notiIntent, 0);
+
+	//	Intent intent = new Intent();//this, ActNotif.class); //saját magát nyitja meg
+	//	PendingIntent pIntent = PendingIntent.getActivity(this, 0, intent, 0);
 
 
 		NotificationCompat.Builder mBuilder = new NotificationCompat.Builder(this)
 //		Notification noti = new NotificationCompat.Builder(this)
 												.setAutoCancel(true)
-												.setContentTitle("ZReader")
+												.setContentTitle(sTitle)
 												.setContentText(sText)
-												.setSmallIcon(R.drawable.evilicon)
+												.setSmallIcon(R.drawable.zserv_icon_bar)
 												.setContentIntent(pIntent);
 											//	.build();
 
@@ -83,21 +111,14 @@ public class MyService extends Service
 		Log.d(TAG, "onCreate");
 		super.onCreate();
 
-		Thread serverThread = new Thread(null, mServerRunnable, "MyService");
-
-		serverThread.start();
-
+		start_to_serve();
 	}
 
 	@Override
 	public int onStartCommand(Intent intent, int flags, int startId)
 	{
 		// itt kell kitalálni mi van az átadott intent-el
-		str_selfn = intent.getExtras().getString("SelFile");
-		portnumber = intent.getExtras().getInt("PortNum");
-
-		if(intent.hasExtra("SelFile")) Log.d(TAG, "Found extra data - SelFile: " + str_selfn);
-		else Log.d(TAG, "Not found Extra data!");
+		portnumber = intent.getExtras().getInt("portnum");
 
 		Intent notiIntent = new Intent(this, ZipservApp.class);
 		PendingIntent pIntent = PendingIntent.getActivity(this, 0, notiIntent, 0);
@@ -112,7 +133,6 @@ public class MyService extends Service
 											//	.build();
 
 		Notification noti = mBuilder.build();
-
 		startForeground(UNIQE_NOTI_ID, noti);
 
     	return START_STICKY;
@@ -150,10 +170,14 @@ public class MyService extends Service
 			Log.d(TAG, "--------------- Thread started --------------------");
 
 			inform_activity(0, "Server starting");
-			if(true == cf_init_server(str_selfn, portnumber))
+			if(true == cf_init_server(portnumber))
 			{
 				inform_activity(0, "Server running, open your book in browser!");
+
+				bthreadrunning = true; 
 				cf_run_server();
+				bthreadrunning = false; 
+
 				inform_activity(0, "Server stopped");
 			}else{
 				inform_activity(1, "Server initialization failed");

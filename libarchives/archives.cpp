@@ -286,8 +286,9 @@ carchive_zip a_zip;
 bool carchive::open(const std::string &filename)
 {
 	std::cout << filename << " looks like ";
-	
-	parchive = NULL;
+
+	close();
+
 	if(checkfiletype(filename, "chm"))
 	{
 //		parchive = new carchive_chm();
