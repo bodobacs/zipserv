@@ -1,53 +1,41 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:orientation="vertical"
-    android:layout_width="fill_parent"
-    android:layout_height="fill_parent" >
-	<TextView
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content" >
+
+<!--	<TextView
     android:layout_width="fill_parent"
     android:layout_height="wrap_content"
     android:text="Selected file" />
+
 	<TextView
 	android:id="@+id/tv_selectedfile"
     android:layout_width="fill_parent"
     android:layout_height="wrap_content"
-    android:text="No file selected yet." />
+    android:text="No file selected yet." /> -->
+
 	<Button
 	android:id="@+id/btn_fileselect"
 	android:layout_height="wrap_content"
     android:layout_width="fill_parent"
 	android:text="Choose an archive file (.zip or .chm)"
 	android:onClick="onFileChoose" />
+
 	<Button
 	android:id="@+id/btn_opensite"
     android:layout_width="fill_parent"
 	android:layout_height="wrap_content"
 	android:text="@string/name_btn_opensite"
 	android:onClick="onOpenSite" />
-	<TextView
-    android:layout_width="fill_parent"
-    android:layout_height="wrap_content"
-    android:text="Port:" />
-	<EditText
-    android:id="@+id/et_portnumber"
-    android:layout_width="wrap_content"
-    android:layout_height="wrap_content"
-    android:gravity="center"
-    android:hint="Port number field"
-    android:text="19000"
-    android:maxLength="5"
-    android:numeric="decimal"
-    android:inputType="numberDecimal" />
-<!--    android:textIsSelectable="true" -->
-	<TextView
-	android:id="@+id/tv_myserv_output"
-    android:layout_width="fill_parent"
-    android:layout_height="wrap_content"
-    android:text="Server status" />
+
+	<!-- android:textIsSelectable="true" -->
+
 	<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
 		android:orientation="horizontal"
 		android:layout_width="match_parent"
 		android:layout_height="wrap_content">
+
 	<Button
 		android:id="@+id/btn_startserver"
 		android:layout_weight="1"
@@ -55,26 +43,48 @@
 		android:layout_width="wrap_content"
 		android:text="Start server"
 		android:onClick="onStartServer" />
+
 	<Button
 		android:id="@+id/btn_stopserver"
 		android:layout_weight="1"
 		android:layout_height="wrap_content"
 		android:layout_width="wrap_content"
-		android:text="Exit"
+		android:text="Stop server"
 		android:onClick="onStopServer" />
 	</LinearLayout>
-<TextView
-	android:id="@+id/tv_myserv_output"
+
+	<EditText
+    android:id="@+id/et_portnumber"
     android:layout_width="fill_parent"
     android:layout_height="wrap_content"
-    android:text="Ads" />
-<com.google.android.gms.ads.AdView
-	xmlns:ads="http://schemas.android.com/apk/res-auto"
-	android:id="@+id/adView"
-	android:layout_width="fill_parent"
+    android:gravity="center"
+    android:hint="Port number field"
+    android:text="19000"
+    android:maxLength="5"
+    android:numeric="decimal"
+    android:inputType="numberDecimal" />
+
+	<Button
+	android:id="@+id/btn_website"
+	android:layout_weight="1"
 	android:layout_height="wrap_content"
-	ads:adSize="LARGE_BANNER"
-	ads:adUnitId="@string/banner_ad_unit_id">
+	android:layout_width="fill_parent"
+	android:text="Online about"
+	android:onClick="onbtnWebsite" />
+
+<TextView
+android:layout_width="fill_parent"
+android:layout_height="wrap_content"
+android:text="Ads" />
+
+<com.google.android.gms.ads.AdView
+xmlns:ads="http://schemas.android.com/apk/res-auto"
+android:id="@+id/adView"
+android:layout_width="fill_parent"
+android:layout_height="wrap_content"
+ads:adSize="LARGE_BANNER"
+ads:adUnitId="@string/banner_ad_unit_id">
 </com.google.android.gms.ads.AdView>
+
 </LinearLayout>
 

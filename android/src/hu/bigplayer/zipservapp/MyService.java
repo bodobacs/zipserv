@@ -37,6 +37,8 @@ public class MyService extends Service
 	public native void cf_run_server();
 	public native boolean native_open_archive(String jstr_fn);
 
+	public boolean mopensuccess = false;
+
 	public void stop_server()
 	{
 		cf_stop_server();
@@ -47,13 +49,17 @@ public class MyService extends Service
 		if(!s.isEmpty() && native_open_archive(s))
 		{
 			fn_opened = s;
-			inform_activity(0, "Archive opened successfully");
+			feedback_string(0, "Archive opened successfully");
 			sendNotification(s, "http://localhost:" + portnumber);
+			mopensuccess = true;
+
 			return true;
 		}
 
-		sendNotification(s, "http://localhost:" + portnumber);
-		inform_activity(0, "Archive not opened");
+		sendNotification(s, "Archive not opened.");
+		feedback_string(0, "Archive not opened");
+		mopensuccess = false;
+
 		return false;
 	}
 
@@ -82,7 +88,7 @@ public class MyService extends Service
 	public void sendNotification(String sTitle, String sText)
 	{
 		Intent notiIntent = new Intent(this, ZipservApp.class);
-		PendingIntent pIntent = PendingIntent.getActivity(this, 0, notiIntent, 0);
+		PendingIntent pIntent = PendingIntent.getActivity(this, 0, notiIntent, PendingIntent.FLAG_UPDATE_CURRENT);
 
 	//	Intent intent = new Intent();//this, ActNotif.class); //saját magát nyitja meg
 	//	PendingIntent pIntent = PendingIntent.getActivity(this, 0, intent, 0);
@@ -108,8 +114,9 @@ public class MyService extends Service
 	@Override
 	public void onCreate()
 	{
-		Log.d(TAG, "onCreate");
 		super.onCreate();
+
+		Log.d(TAG, "onCreate");
 
 		start_to_serve();
 	}
@@ -121,13 +128,13 @@ public class MyService extends Service
 		portnumber = intent.getExtras().getInt("portnum");
 
 		Intent notiIntent = new Intent(this, ZipservApp.class);
-		PendingIntent pIntent = PendingIntent.getActivity(this, 0, notiIntent, 0);
+		PendingIntent pIntent = PendingIntent.getActivity(this, 0, notiIntent, PendingIntent.FLAG_UPDATE_CURRENT);
 
 		NotificationCompat.Builder mBuilder = new NotificationCompat.Builder(this)
 //		Notification noti = new NotificationCompat.Builder(this)
 												.setAutoCancel(true)
-												.setContentTitle("Zipserv")
-												.setContentText("Running")
+												.setContentTitle(this.getString(R.string.app_name))
+												.setContentText("http://localhost" + portnumber)
 												.setSmallIcon(R.drawable.zserv_icon_bar)
 												.setContentIntent(pIntent);
 											//	.build();
@@ -141,7 +148,6 @@ public class MyService extends Service
 	@Override
 	public void onDestroy()
 	{
-
 		super.onDestroy();
 	}
 
@@ -169,18 +175,21 @@ public class MyService extends Service
 
 			Log.d(TAG, "--------------- Thread started --------------------");
 
-			inform_activity(0, "Server starting");
+			feedback_string(0, "Server starting");
 			if(true == cf_init_server(portnumber))
 			{
-				inform_activity(0, "Server running, open your book in browser!");
+				feedback_string(0, "Server running, open your book in browser!");
 
 				bthreadrunning = true; 
 				cf_run_server();
+
 				bthreadrunning = false; 
 
-				inform_activity(0, "Server stopped");
+				feedback_status(2);
+
+				feedback_string(0, "Server stopped");
 			}else{
-				inform_activity(1, "Server initialization failed");
+				feedback_string(1, "Server initialization failed");
 			}
 
 			MyService.this.stopForeground(false); //java ...
@@ -206,15 +215,27 @@ public class MyService extends Service
 			return i+1;
 	}
 
-	public void inform_activity(int r, String s)
+	public void feedback_string(int r, String s)
 	{
 		if(mReceiver_activity != null)
 		{
-			Bundle b = new Bundle(); b.putString("msg", s);
+			Bundle b = new Bundle(); b.putString("m", s);
 			mReceiver_activity.send(r, b);
-
-			Log.d(TAG, "MSG to Activity: " + s);
 		}
+	}
+
+	public void feedback_int(int r, int i)
+	{
+		if(mReceiver_activity != null)
+		{
+			Bundle b = new Bundle(); b.putInt("m", i);
+			mReceiver_activity.send(r, b);
+		}
+	}
+
+	public void feedback_status(int r)
+	{
+		if(mReceiver_activity != null) mReceiver_activity.send(r, null);
 	}
 }
 

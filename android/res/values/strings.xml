@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Zipserv</string>
+    <string name="app_name">zserv-reader</string>
 	<string name="name_btn_opensite">Open book in browser</string>
 	<!-- <string name="banner_ad_unit_id">ca-app-pub-3940256099942544/6300978111</string> -->
 	<!-- this is my admob id -->

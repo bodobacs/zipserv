@@ -54,8 +54,6 @@ public class ZipservApp extends Activity
 
 	MyResultReceiver mReceiver = null;
 
-	TextView tv_myserv_output = null;
-	TextView tv_selected_file = null;
 	Button btn_select_file = null;
 	Button btn_start_server = null;
 	Button btn_stop_server = null;
@@ -70,12 +68,12 @@ public class ZipservApp extends Activity
 
 		setContentView(R.layout.main);
 
-		tv_myserv_output = (TextView)findViewById(R.id.tv_myserv_output);
-		tv_selected_file = (TextView)findViewById(R.id.tv_selectedfile);
+		btn_select_file = (Button)findViewById(R.id.btn_fileselect);
 		btn_start_server = (Button)findViewById(R.id.btn_startserver);
 		btn_stop_server = (Button) findViewById(R.id.btn_stopserver);
 		et_port_number = (EditText)findViewById(R.id.et_portnumber);
 		btn_open_site = (Button) findViewById(R.id.btn_opensite);
+
 
 //AD's init
 
@@ -88,24 +86,31 @@ public class ZipservApp extends Activity
 
 //Ad's ^
 
-		et_port_number.addTextChangedListener(new TextWatcher()
-		{
-			@Override
-			public void afterTextChanged(Editable s)
-			{
-				portnumber = Integer.parseInt(et_port_number.getText().toString());
-				Log.d(TAG, "portnumber changed");
-			}
-
-			@Override
-			public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
-			@Override
-			public void onTextChanged(CharSequence s, int start, int before, int count) {}
-		});
-
 		mReceiver = new MyResultReceiver(new Handler());
 
+		if(savedInstanceState != null)
+		{
+		//	mopensuccess = savedInstanceState.getBoolean("a");
+		//	mnewfilechoosen = savedInstanceState.getBoolean("b");
+		}else{
+		//	btn_open_site.setEnabled(false);
+		//	btn_select_file.setEnabled(true);
+		}
+
+		//buttons default enabled state	
+		btn_open_site.setEnabled(false);
+		btn_stop_server.setEnabled(false);
     }
+
+	@Override
+	public void onSaveInstanceState(Bundle si)
+	{
+		super.onSaveInstanceState(si);
+
+	//	si.putBoolean("a", mopensuccess);
+	//	si.putBoolean("rba", mnewfilechoosen);
+
+	}
 
 	@Override
 	public void onStart()
@@ -123,6 +128,7 @@ public class ZipservApp extends Activity
 		super.onStop();
 		Log.d(TAG, "onStop");
 		
+
 		if(mBound)
 		{
 			unbindService(mConnection);
@@ -166,16 +172,30 @@ public class ZipservApp extends Activity
 
 				//just now returned from file chooser and tries to open that new file
 				et_port_number.setEnabled(false);
+				et_port_number.setText("" + mService.portnumber);
+				portnumber = mService.portnumber;
 
+				Log.d(TAG, "" + mService.portnumber);
+
+				btn_start_server.setEnabled(false);
+				btn_stop_server.setEnabled(true);
+
+				//new file choosen try to open and enable opening as a site
 				if(mnewfilechoosen)
 				{
-					mService.open_archive(filename_selected);
 					mnewfilechoosen = false;
-
-					open_site();
+					if(mService.open_archive(filename_selected))
+					{
+						btn_select_file.setText(mService.fn_opened);
+					}else{
+						btn_select_file.setText("Broken file:" + filename_selected);
+					}
 				}else{
-					tv_selected_file.setText(mService.fn_opened);
+					filename_selected = mService.fn_opened;
 				}
+
+				if(mService.mopensuccess) btn_open_site.setEnabled(true);
+				else btn_open_site.setEnabled(false);
 
 				//disable/enable corresponding buttons
 			} catch (Exception e) {
@@ -187,20 +207,25 @@ public class ZipservApp extends Activity
 		@Override
 		public void onServiceDisconnected(ComponentName arg0) {
 
-	//		buttons_step_1();
-
 			Log.d(TAG, "onServiceDisconnected");
 			mBound = false;
 		}
 	};
 
+	public void onbtnWebsite(View v)
+	{
+		Intent browserIntent = new Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://sites.google.com/site/zservreader/"));
+		startActivity(browserIntent);
+	}
+
 	public void start_server_service()
 	{//starts the MyService but the real server thread
 
-		Log.d(TAG, "onStartServer ->");
+		Log.d(TAG, "Starting server");
 
 		if(!mBound)
 		{//not bound
+			portnumber = Integer.parseInt(et_port_number.getText().toString());
 			Intent i = new Intent(this, MyService.class);
 			i.putExtra("portnum", (int)portnumber);
 			startService(i);
@@ -226,7 +251,7 @@ public class ZipservApp extends Activity
 	}
 
 	String localhost = "http://localhost:";
-	int portnumber = 19000;
+	int portnumber;
 
 	public void open_site()
 	{
@@ -237,7 +262,7 @@ public class ZipservApp extends Activity
 	//open site in browser
 	public void onOpenSite(View v)
 	{
-		start_server_service();
+		Log.d(TAG, "portnumber: " + portnumber);
 		open_site();
 	}
 
@@ -250,22 +275,23 @@ public class ZipservApp extends Activity
 		startActivityForResult(intent, REQUEST_FILESELECTOR);
 	}
 
+	//Choose archive activity
 	@Override
 	protected void onActivityResult(int req, int res, Intent i)//req: kérés azonosító, res: visszatérési kód
 	{
 		Log.d(TAG, "onActivityResult " + "request: " + req + " result: " + res + " RESULT_OK: " + RESULT_OK);
 
-		if(RESULT_OK == res && REQUEST_FILESELECTOR == req)
+		if(RESULT_OK == res && REQUEST_FILESELECTOR == req) 
 		{
 			if(i.hasExtra("SelFile")) //a file kivalsztasa utan megszerzi a file nevet
 			{
 				filename_selected = i.getExtras().getString("SelFile");
-				tv_selected_file.setText(filename_selected);
+				btn_select_file.setText(filename_selected);
 				mnewfilechoosen = true;
+				start_server_service();
 			}
 		}else{
-			//help.zip lehetne a backup megoldás
-		//	tv_selected_file.setText("No file");
+				//help.zip lehetne a backup megoldás
 		}
 	}
 
@@ -276,6 +302,10 @@ public class ZipservApp extends Activity
 		   super(handler);
 		}
 
+		private boolean bpause = false;
+		public void pause(boolean b) { bpause = b; }
+
+		//MyService feedback
 		@Override
 		protected void onReceiveResult(int resultCode, Bundle resultData) {
 			// Anybody interested in the results? Well, then feel free to take them.
@@ -283,31 +313,25 @@ public class ZipservApp extends Activity
 			{
 				switch(resultCode)
 				{
-					case 1:
-					//service tried to open archie but failed
-						filename_selected = "";
-						tv_selected_file.setText("File read error");
+					case 2:
+					//service selfstopping
+						btn_open_site.setEnabled(false); //no open site
+						btn_stop_server.setEnabled(false); //no stop btn
+						btn_start_server.setEnabled(true); //start btn ok
 						break;
+					case 1:
+						btn_select_file.setText("Choose another archive!");
+						btn_open_site.setEnabled(false);
+						break;
+					case 0:
 					default:
-						set_server_status(resultData.getString("msg"));
+					//server status info
+						break;
 						
 				}
 			}
 		}
 
-		private boolean bpause = false;
-
-		public void pause(boolean b)
-		{
-			bpause = b;
-		}
 	}
-
-	public void set_server_status(String s)
-	{
-		Log.d(TAG, "set_server_status: " + s);
-		tv_myserv_output.setText(s); 
-	}
-
-
 }
+
