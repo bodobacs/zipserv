@@ -161,7 +161,7 @@ public class ZipservApp extends Activity
 		{
 				Log.d(TAG, "onServiceConnected");
 
-			try{	
+			try{
 				// We've bound to LocalService, cast the IBinder and get LocalService instance
 				mBinder = (MyService.LocalBinder) service;
 				mService = mBinder.getService();
@@ -186,16 +186,21 @@ public class ZipservApp extends Activity
 					mnewfilechoosen = false;
 					if(mService.open_archive(filename_selected))
 					{
-						btn_select_file.setText(mService.fn_opened);
+						btn_select_file.setText(mService.native_getfilename());
+						btn_open_site.setEnabled(true);
 					}else{
 						btn_select_file.setText("Broken file:" + filename_selected);
 					}
 				}else{
-					filename_selected = mService.fn_opened;
+					btn_select_file.setText(mService.native_getfilename());
 				}
 
-				if(mService.mopensuccess) btn_open_site.setEnabled(true);
-				else btn_open_site.setEnabled(false);
+				if(mService.native_is_server_running())
+				{
+					btn_open_site.setEnabled(true);
+				}else{
+					btn_open_site.setEnabled(false);
+				}
 
 				//disable/enable corresponding buttons
 			} catch (Exception e) {
@@ -243,10 +248,11 @@ public class ZipservApp extends Activity
 
 	public void onStopServer(View v)
 	{
+		Log.d(TAG, "onStopServer");
 		if(mBound)
-		{ 
+		{
 			mService.stop_server();
-			et_port_number.setEnabled(true);
+
 		}
 	}
 
@@ -313,13 +319,19 @@ public class ZipservApp extends Activity
 			{
 				switch(resultCode)
 				{
+					case 3:
+						//service about to start
+						btn_open_site.setEnabled(true);
+						break;
 					case 2:
 					//service selfstopping
-						btn_open_site.setEnabled(false); //no open site
+					//	btn_open_site.setEnabled(false); //no open site
 						btn_stop_server.setEnabled(false); //no stop btn
 						btn_start_server.setEnabled(true); //start btn ok
+						et_port_number.setEnabled(true);
 						break;
 					case 1:
+					//broken archive
 						btn_select_file.setText("Choose another archive!");
 						btn_open_site.setEnabled(false);
 						break;

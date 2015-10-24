@@ -27,15 +27,14 @@ public class MyService extends Service
 
 	public ResultReceiver mReceiver_activity;
 
-//	private ConditionVariable mCond;
-	String fn_opened; //successfully opened archive file
 	public int portnumber;
-	public boolean bthreadrunning = false;
 
 	public native boolean cf_init_server(int nport);
 	public native void cf_stop_server();
 	public native void cf_run_server();
 	public native boolean native_open_archive(String jstr_fn);
+	public native String native_getfilename();
+	public native boolean native_is_server_running();
 
 	public boolean mopensuccess = false;
 
@@ -48,11 +47,11 @@ public class MyService extends Service
 	{
 		if(!s.isEmpty() && native_open_archive(s))
 		{
-			fn_opened = s;
 			feedback_string(0, "Archive opened successfully");
 			sendNotification(s, "http://localhost:" + portnumber);
 			mopensuccess = true;
 
+			Log.d(TAG, "native_getfilename" + native_getfilename());
 			return true;
 		}
 
@@ -65,7 +64,9 @@ public class MyService extends Service
 
 	public void start_to_serve()
 	{//starts the real separate thread running server cycle
-		if(!bthreadrunning)
+		Log.d(TAG, "start_to_serve");
+
+		if(!native_is_server_running())
 		{
 			Thread serverThread = new Thread(null, mServerRunnable, "MyService");
 			serverThread.start();
@@ -175,21 +176,16 @@ public class MyService extends Service
 
 			Log.d(TAG, "--------------- Thread started --------------------");
 
-			feedback_string(0, "Server starting");
 			if(true == cf_init_server(portnumber))
 			{
-				feedback_string(0, "Server running, open your book in browser!");
+				feedback_status(3); //starting server
 
-				bthreadrunning = true; 
 				cf_run_server();
 
-				bthreadrunning = false; 
-
 				feedback_status(2);
-
-				feedback_string(0, "Server stopped");
 			}else{
-				feedback_string(1, "Server initialization failed");
+				//broken archive
+				feedback_status(1);
 			}
 
 			MyService.this.stopForeground(false); //java ...
@@ -205,14 +201,13 @@ public class MyService extends Service
 
 	public void funcFromC(String s)
 	{
-
-			Log.d(TAG, "Message from C++ lib" + s);
+		Log.d(TAG, "Message from C++ lib" + s);
 	}
 	
 	public int fromjni_status(int i)
 	{
-			Log.d(TAG, "Status from jni: " + i);
-			return i+1;
+		Log.d(TAG, "Status from jni: " + i);
+		return i+1;
 	}
 
 	public void feedback_string(int r, String s)

@@ -308,10 +308,12 @@ bool carchive::open(const std::string &filename)
 
 	if(NULL != parchive && parchive->open(filename))
 	{
+		archive_filename.assign(filename);
 		return true;
 	}
 
 	parchive = NULL;
+	archive_filename.clear();
 //	std::cout << "Failed to create carchive instance" << std::endl;
 	return false;
 }
