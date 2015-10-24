@@ -176,7 +176,7 @@ void czsrv::send_file_list(void)
 	std::stringstream response;
 	response << "HTTP/1.1 200 OK\r\nServer: " << APPNAME_str << "\r\nContent-Type: text/html\r\n" << "Transfer-Encoding: chunked\r\n\r\n" << std::setbase(16) << std::flush;
 
-	std::stringstream content; content << "<html><header><h1>Generated file list</h1></header><body><ol>" << std::endl;
+	std::stringstream content; content << "<html><header><h1>" << archive.get_filename() << "</h1></header><body><h2>Generated file list</h2><ol>" << std::endl;
 
 	if(archive.list_start())
 	{
@@ -184,7 +184,7 @@ void czsrv::send_file_list(void)
 		char filename_buffer[filename_buffer_size];
 
 		int f = 0;
-		for(; archive.list_next_file(filename_buffer, filename_buffer_size); f++) //null terminated string in a std::string?!?!?!
+		for(; archive.list_next_file(filename_buffer, filename_buffer_size);) //null terminated string in a std::string?!?!?!
 		{
 			//filter
 			std::string fn(filename_buffer); //assume filename_buffer is always null terminated
@@ -203,16 +203,18 @@ void czsrv::send_file_list(void)
 
 					response.str(std::string());
 					content.str(std::string());
+
+					f++;
 				}
 			}
 
 		}//for
 
-		if(!f)// first try is failure
+		if(f)// first try is failure
 		{
-			content << "<h1>Cannot list files!</h1>" << std::endl;
+			content << "<h3>" << f << " entries found.</h3>" << std::endl;
 		}else{
-			content << "<h3>" << f << " entries listed.</h3>" << std::endl;
+			content << "<h1>Cannot list files!</h1>" << std::endl;
 		}
 	}else{
 		content << "<h1>Archive is not open!</h1>" << std::endl;

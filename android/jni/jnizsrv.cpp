@@ -128,10 +128,19 @@ JNIEXPORT jboolean cf_init_server(JNIEnv *env, jobject obj, jint ji)
 	return JNI_FALSE;
 }
 
+bool bserver_running = false;
+
 JNIEXPORT void cf_run_server(JNIEnv *env, jobject obj, jlong pointer)
 {
 	__android_log_print(ANDROID_LOG_VERBOSE, TAG.c_str(), "server RUNNING ...");
+
+	bserver_running = true;
+	__android_log_print(ANDROID_LOG_VERBOSE, TAG.c_str(), "server RUNNING 2");
+
 	while(server.run_server());
+
+	__android_log_print(ANDROID_LOG_VERBOSE, TAG.c_str(), "server not running");
+	bserver_running = false;
 
 	server.cleanup();
 
@@ -168,12 +177,35 @@ JNIEXPORT jboolean native_open_archive(JNIEnv *env, jobject obj, jstring jstr_fn
 	return JNI_FALSE;
 }
 
+JNIEXPORT jstring native_getfilename(JNIEnv *env, jobject obj)
+{
+	__android_log_print(ANDROID_LOG_VERBOSE, TAG.c_str(), "native_getfilename");
+	if(server.archive.get_filename().c_str())
+		return env->NewStringUTF(server.archive.get_filename().c_str());
+	else return 0;
+}
+
+JNIEXPORT jboolean native_is_server_running(JNIEnv *env, jobject obj)
+{
+	__android_log_print(ANDROID_LOG_VERBOSE, TAG.c_str(), "native_is_server_running");
+
+	if(bserver_running) return JNI_TRUE;
+	else return JNI_FALSE;
+}
+
+JNIEXPORT jint native_getport(JNIEnv *env, jobject obj)
+{
+	__android_log_print(ANDROID_LOG_VERBOSE, TAG.c_str(), "native_getport");
+
+	return server.get_port();
+}
+
 /*
 SOOOOOOOOOOO IMPORTANT
 HAVE TO FOLLOW CHANGES OF FUNCTION LIST
 */
 
-const int method_table_size = 4; //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+const int method_table_size = 7; //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 //these can be called from java code + need declaration in java code
 static JNINativeMethod method_table[] = {
@@ -181,7 +213,10 @@ static JNINativeMethod method_table[] = {
 	{ "cf_stop_server", "()V", (void *)cf_stop_server},
 //	{ "myJNICallJavaFunc", "()V", (void *)myJNICallJavaFunc }, nem kell ez csak megkeresi a fuggvenyt a javaban es meghivja, nem kell regisztralni
 	{ "cf_init_server", "(I)Z", (bool *)cf_init_server}, //(String zip_fn, int nport);
-	{ "native_open_archive", "(Ljava/lang/String;)Z", (bool *)native_open_archive} //(String zip_fn, int nport);
+	{ "native_open_archive", "(Ljava/lang/String;)Z", (bool *)native_open_archive}, //(String zip_fn, int nport);
+	{ "native_getfilename", "()Ljava/lang/String;", (jstring *)native_getfilename},
+	{ "native_is_server_running", "()Z", (bool *)native_is_server_running},
+	{ "native_getport", "()I", (jint *)native_getport}
 };
 
 JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void* reserved)

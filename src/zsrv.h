@@ -32,7 +32,6 @@ class czsrv
 	fd_set read_fds; //ezt állitja be a select
 
 protected:
-	carchive archive;
 	bool barchive_ok;
 	bool barchive_used;
 
@@ -66,6 +65,7 @@ public:
 	czsrv();
 	~czsrv();
 
+	carchive archive;
 	bool open_archive(const std::string fn);
 	bool init(int p);
 	bool run_server(void);
@@ -73,6 +73,7 @@ public:
 	void stop(void);
 	void cleanup(void);
 
+	int get_port(void){ return listen_port; }
 private:
 };
 

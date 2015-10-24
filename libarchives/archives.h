@@ -26,6 +26,7 @@ class carchive
 {
 	bool checkfiletype(const std::string &filename, const std::string &type);
 
+	std::string archive_filename;
 public:
 	carchive();
 	~carchive();
@@ -39,6 +40,7 @@ public:
 	bool list_start(void);
 	bool list_next_file(char *buffer, const int &buffer_size);
 
+	std::string get_filename(){ return archive_filename; };
 private:
 	carchive_base *parchive;
 };
