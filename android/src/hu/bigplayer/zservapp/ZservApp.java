@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package hu.bigplayer.zipservapp;
+package hu.bigplayer.zservapp;
 
 import android.app.Activity;
 import android.os.Bundle;
@@ -44,9 +44,9 @@ import com.google.android.gms.ads.AdRequest.Builder;
 import com.google.android.gms.ads.AdRequest;
 import com.google.android.gms.ads.AdView;
 
-public class ZipservApp extends Activity
+public class ZservApp extends Activity
 {
-	String TAG = "ZipservApp";
+	String TAG = "ZservApp";
 
 	public MyService mService;
 	boolean mBound = false;
@@ -192,7 +192,9 @@ public class ZipservApp extends Activity
 						btn_select_file.setText("Broken file:" + filename_selected);
 					}
 				}else{
-					btn_select_file.setText(mService.native_getfilename());
+					String fn = mService.native_getfilename();
+					if(!fn.isEmpty()) btn_select_file.setText(fn);
+					else btn_select_file.setText("Select an archive!");
 				}
 
 				if(mService.native_is_server_running())

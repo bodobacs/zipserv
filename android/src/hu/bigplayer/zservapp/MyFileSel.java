@@ -1,4 +1,4 @@
-package hu.bigplayer.zipservapp;
+package hu.bigplayer.zservapp;
 
 import android.app.ListActivity;
 import android.os.Bundle;

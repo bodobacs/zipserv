@@ -32,7 +32,7 @@ int main(int argc, char **argv)
 
 		std::string filename(argv[1]);
 
-		if(server.init(filename, port))
+		if(server.open_archive(filename) && server.init(port))
 		{
 			std::cout << "Starting to serve " << filename << " on port " << port << " ..." << std::endl;
 			while(server.run_server());
