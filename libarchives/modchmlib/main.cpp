@@ -27,7 +27,7 @@ int main(int c, char **v)
     int i;
 
 	h = chm_open(v[i]);
-	if (h =! NULL)
+	if (h != NULL)
 	{
 
 		if (! chm_enumerate(h, CHM_ENUMERATE_ALL, _print_ui, NULL)) printf("   *** ERROR ***\n");

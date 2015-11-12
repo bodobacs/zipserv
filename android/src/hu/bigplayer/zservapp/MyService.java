@@ -1,4 +1,4 @@
-package hu.bigplayer.zipservapp;
+package hu.bigplayer.zservapp;
 
 import android.app.Activity;
 import android.app.PendingIntent;
@@ -9,7 +9,6 @@ import android.os.Bundle;
 import android.support.v4.app.NotificationCompat; // STATIKUS KONYVTÁR, be kell másolni az sdk-ból!
 import android.app.NotificationManager; 
 import android.app.Notification; 
-
 import android.util.Log; 
 
 import android.app.Service;
@@ -35,6 +34,7 @@ public class MyService extends Service
 	public native boolean native_open_archive(String jstr_fn);
 	public native String native_getfilename();
 	public native boolean native_is_server_running();
+	public native int native_getport();
 
 	public boolean mopensuccess = false;
 
@@ -88,7 +88,7 @@ public class MyService extends Service
 	
 	public void sendNotification(String sTitle, String sText)
 	{
-		Intent notiIntent = new Intent(this, ZipservApp.class);
+		Intent notiIntent = new Intent(this, ZservApp.class);
 		PendingIntent pIntent = PendingIntent.getActivity(this, 0, notiIntent, PendingIntent.FLAG_UPDATE_CURRENT);
 
 	//	Intent intent = new Intent();//this, ActNotif.class); //saját magát nyitja meg
@@ -128,7 +128,7 @@ public class MyService extends Service
 		// itt kell kitalálni mi van az átadott intent-el
 		portnumber = intent.getExtras().getInt("portnum");
 
-		Intent notiIntent = new Intent(this, ZipservApp.class);
+		Intent notiIntent = new Intent(this, ZservApp.class);
 		PendingIntent pIntent = PendingIntent.getActivity(this, 0, notiIntent, PendingIntent.FLAG_UPDATE_CURRENT);
 
 		NotificationCompat.Builder mBuilder = new NotificationCompat.Builder(this)

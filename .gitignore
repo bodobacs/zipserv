@@ -8,4 +8,5 @@ test*/
 data/
 *.swp
 *.so
+*.zip
 res/

@@ -36,13 +36,8 @@ IF(UNIX)
 	target_link_libraries(test_archives archives modchmlib unzip)
 	
 	#product
-	add_executable(zserv ${CMAKE_SOURCE_DIR}/main.cpp ${CMAKE_SOURCE_DIR}/zsrv.cpp ${CMAKE_SOURCE_DIR}/zsrv.h ${CMAKE_SOURCE_DIR}/mimetypes.h ${LIBARCHIVES}/archives.h)
-	target_link_libraries(zserv archives)
-
-	#SET(CPACK_GENERATOR "DEB")
-	#SET(CPACK_DEBIAN_PACKAGE_MAINTAINER "Z") #required
-
-	#include (CPack)
+	add_executable(zserv_cli ${CMAKE_SOURCE_DIR}/main.cpp ${CMAKE_SOURCE_DIR}/zsrv.cpp ${CMAKE_SOURCE_DIR}/zsrv.h ${CMAKE_SOURCE_DIR}/mimetypes.h ${LIBARCHIVES}/archives.h)
+	target_link_libraries(zserv_cli archives)
 
 
 ENDIF(UNIX) #IF(UNIX)
@@ -60,7 +55,8 @@ ENDIF(UNIX) #IF(UNIX)
 IF(WIN32)
 
 	IF(MINGW)
-		SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x")
+		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x")
+#		set(CMAKE_EXE_LINKER_FLAGS "-static")
 	ELSE(MINGW)
 		SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Qstd=c++11")
 	ENDIF(MINGW)
@@ -104,11 +100,78 @@ IF(WIN32)
 	target_link_libraries(zserv_cli archives wsock32 ws2_32)
 
 	#WIN32 -> WinMain not console program!
-	#	add_executable(zserv WIN32 zsrv.cpp zserv_dialog.rc winmain.cpp)
-	add_executable(zserv zsrv.cpp zserv_dialog.rc winmain.cpp)
+	add_executable(zserv WIN32 zsrv.cpp zserv_dialog.rc winmain.cpp)
+#	add_executable(zserv zsrv.cpp zserv_dialog.rc winmain.cpp)
 	target_link_libraries(zserv archives wsock32 ws2_32)
 
+
+	add_custom_target(create_zip COMMAND
+		${CMAKE_COMMAND} -E tar "cfv" "archive.zip" --format=zip
+       "${CMAKE_CURRENT_SOURCE_DIR}/testfile.txt"
+       "${CMAKE_CURRENT_SOURCE_DIR}/testdir")
+
+
+
+
 ENDIF(WIN32) #IF(WIN32)
+
+	include(InstallRequiredSystemLibraries)
+
+	set(CPACK_PACKAGE_NAME zserv_cli)
+	set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Small server can be used to read zip and chm files in browser.")
+	set(CPACK_PACKAGE_VENDOR "Bigplayer")
+	set(CPACK_PACKAGE_DESCRIPTION_FILE "${CMAKE_CURRENT_SOURCE_DIR}/../readme.txt")
+	set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/../copyright.txt")
+
+	set(CPACK_PACKAGE_VERSION_MAJOR "1")
+	set(CPACK_PACKAGE_VERSION_MINOR "0")
+	set(CPACK_PACKAGE_VERSION_PATCH "0")
+
+	set(MY_VERSION ${CPACK_PACKAGE_VERSION_MAJOR}.${CPACK_PACKAGE_VERSION_MINOR}.${CPACK_PACKAGE_VERSION_PATCH})
+
+	set(CPACK_MONOLITHIC_INSTALL 1)
+
+	IF(WIN32 AND NOT UNIX)
+
+	set(CPACK_GENERATOR "ZIP;NSIS")
+	set(CPACK_PACKAGE_EXECUTABLES zserv "zserv-reader")
+
+
+	ELSE(WIN32 AND NOT UNIX)
+
+	set(CPACK_GENERATOR "TGZ;DEB")
+
+	install( 	TARGETS zserv_cli 
+				RUNTIME DESTINATION bin
+				LIBRARY DESTINATION lib)
+
+	install( 	TARGETS modchmlib
+				RUNTIME DESTINATION bin
+				LIBRARY DESTINATION lib)
+
+	set(CPACK_PACKAGE_CONTACT "bigplayer.dev@gmail.com")
+	set(CPACK_DEBIAN_PACKAGE_MAINTAINER "zoltan fabian")
+	set(CPACK_DEBIAN_PACKAGE_DEPENDS zlib1g)
+
+	string(TOLOWER "${CPACK_PACKAGE_NAME}" CPACK_PACKAGE_NAME_LOWERCASE)
+	find_program(DPKG_PROGRAM dpkg DOC "dpkg program of Debian-based systems")
+	if(DPKG_PROGRAM)
+	  execute_process(
+		COMMAND ${DPKG_PROGRAM} --print-architecture
+		OUTPUT_VARIABLE CPACK_DEBIAN_PACKAGE_ARCHITECTURE
+		OUTPUT_STRIP_TRAILING_WHITESPACE
+	  )
+	  set(CPACK_PACKAGE_FILE_NAME
+	"${CPACK_PACKAGE_NAME_LOWERCASE}-${MY_VERSION}_${CPACK_DEBIAN_PACKAGE_ARCHITECTURE}")   
+
+	else(DPKG_PROGRAM)
+	  set(CPACK_PACKAGE_FILE_NAME
+	"${CPACK_PACKAGE_NAME_LOWERCASE}-${MY_VERSION}_${CMAKE_SYSTEM_NAME}")
+	endif(DPKG_PROGRAM)
+
+	ENDIF(WIN32 AND NOT UNIX)
+
+	INCLUDE(CPack)
 
 # dependency map
 # zserv < unzip < zlib
