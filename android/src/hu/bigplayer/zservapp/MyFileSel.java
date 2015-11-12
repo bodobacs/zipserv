@@ -19,20 +19,30 @@ import android.widget.ListView;
 import android.widget.TextView;
 //import android.widget.Button;
 
+import android.content.SharedPreferences; //saving prefs
+
 public class MyFileSel extends ListActivity
 {	
 	private static String TAG = "MyFileSel";
 
 	private	List<String> mFileList;
-	private String mPath = Environment.getExternalStorageDirectory().getPath(); // "/"; //actual path to filenames
+	private String mPath;// = Environment.getExternalStorageDirectory().getPath(); // "/"; //actual path to filenames
 	private	int selected_file_index = -1;
 	private ArrayAdapter<String> adapter;
+
+	SharedPreferences prefs;
 
 	public void onCreate(Bundle bundle)
 	{
 		super.onCreate(bundle);
 		Log.d(TAG, "onCreate 1");
 		setContentView(R.layout.mylist);
+
+		prefs = getPreferences(MODE_PRIVATE);
+		if(prefs != null)
+		{
+			mPath = prefs.getString("last_dir", Environment.getExternalStorageDirectory().getPath());
+		}
 
 		mFileList = new ArrayList<String>(); //contains file names, found filenames copied here
 
@@ -57,6 +67,8 @@ public class MyFileSel extends ListActivity
 			Intent i = new Intent();
 
 			i.putExtra("SelFile", mPath + "/" + mFileList.get(selected_file_index));
+
+			prefs.edit().putString("last_dir", mPath).commit();
 
 			setResult(RESULT_OK, i);
 		}else{

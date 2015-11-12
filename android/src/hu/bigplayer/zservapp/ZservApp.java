@@ -214,6 +214,7 @@ public class ZservApp extends Activity
 		@Override
 		public void onServiceDisconnected(ComponentName arg0) {
 
+
 			Log.d(TAG, "onServiceDisconnected");
 			mBound = false;
 		}
@@ -256,6 +257,7 @@ public class ZservApp extends Activity
 			mService.stop_server();
 			btn_open_site.setEnabled(false); 
 		}
+
 	}
 
 	String localhost = "http://localhost:";

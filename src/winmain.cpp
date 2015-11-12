@@ -30,19 +30,21 @@ using namespace std;
 czsrv server;
 int portnumber = 19000;
 std::string zipname;
-bool exit_on_stop = false;
 
 unsigned __stdcall server_thread(void *pargs)
 {
 	if(!running)
 	{
-		if(server.init(zipname, portnumber))
+		if(server.open_archive(zipname) && server.init(portnumber))
 		{
 			running = true;
 			SendMessage(g_hwnd, WM_SERVER, 0, 0);
 
 			std::stringstream ss; ss << "Server running. Port: " << portnumber << std::endl;
 			SetDlgItemText(g_hwnd, ID_STATUS, ss.str().c_str());
+
+			SetDlgItemInt(g_hwnd, ID_PORT, portnumber, FALSE);
+
 			while(server.run_server());
 			server.cleanup();
 		}else{
@@ -65,40 +67,33 @@ INT_PTR CALLBACK WndProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 	g_hwnd = hDlg;
 	switch (message) {
 	case WM_INITDIALOG:
+		SetDlgItemInt(hDlg, ID_PORT, portnumber, FALSE);
 		return (TRUE);
 
 	case WM_SERVER:
 		if(running)
 		{
-			EnableWindow( GetDlgItem( hDlg, ID_START ), FALSE);
-			EnableWindow( GetDlgItem( hDlg, ID_STOP), TRUE);
 			EnableWindow( GetDlgItem( hDlg, ID_BROWSER), TRUE);
+			EnableWindow( GetDlgItem( hDlg, ID_PORT), FALSE);
 			
 		}else{
 			CloseHandle(server_thread_handle);
 			server_thread_handle = NULL;
 
-			EnableWindow( GetDlgItem( hDlg, ID_START ), TRUE);
-			EnableWindow( GetDlgItem( hDlg, ID_STOP), FALSE);
-			EnableWindow( GetDlgItem( hDlg, ID_BROWSER), FALSE);
-
-			SetDlgItemText(hDlg, ID_STOP, "Stop server");
-
-		   if(exit_on_stop) EndDialog(hDlg, TRUE);
+			EndDialog(hDlg, TRUE);
 		}
 	  return (TRUE);
 			
 	  case WM_COMMAND:
 	  	switch LOWORD(wParam){
-			case ID_START:
-				server_thread_handle = (HANDLE)_beginthreadex(0, 0, &server_thread, 0, 0, 0);
+		/*	case ID_START:
 				return (TRUE);
 
 			case ID_STOP:
 				SetDlgItemText(hDlg, ID_STOP, "Stopping server ...");
 				server.stop();	
 				return (TRUE);
-			case ID_SELECT:
+		*/	case ID_SELECT:
 				{
 					OPENFILENAME ofn;
 					char szFileName[MAX_PATH] = "";
@@ -119,11 +114,16 @@ INT_PTR CALLBACK WndProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 						if(zipname.length() > 0)
 						{
 							SetDlgItemText(hDlg, ID_ZIPNAME, zipname.c_str());
-							if(!running) EnableWindow( GetDlgItem( hDlg, ID_START ), TRUE);
+							if(!running)
+							{
+								server_thread_handle = (HANDLE)_beginthreadex(0, 0, &server_thread, 0, 0, 0);
+							}else{
+								if(!server.open_archive(zipname)) EnableWindow( GetDlgItem( hDlg, ID_BROWSER), FALSE);
+							}
 						}
 					}
 				}
-			       return (TRUE);
+			   return (TRUE);
 
 			case ID_BROWSER:
 			       {
@@ -139,17 +139,15 @@ INT_PTR CALLBACK WndProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 				if(running)
 				{	
 					server.stop();
-					exit_on_stop = true;
 					SetDlgItemText(hDlg, IDOK, "Stopping server ...");
 
 					//disable all buttons
 					EnableWindow( GetDlgItem( hDlg, ID_SELECT), FALSE);
-					EnableWindow( GetDlgItem( hDlg, ID_START ), FALSE);
-					EnableWindow( GetDlgItem( hDlg, ID_STOP), FALSE);
+					EnableWindow( GetDlgItem( hDlg, ID_PORT), FALSE);
 					EnableWindow( GetDlgItem( hDlg, ID_BROWSER), FALSE);
 					EnableWindow( GetDlgItem( hDlg, IDOK ), FALSE);
 				}else{
-				   EndDialog(hDlg, TRUE);
+					EndDialog(hDlg, TRUE);
 				}
 
 			   return (TRUE);
@@ -160,6 +158,8 @@ INT_PTR CALLBACK WndProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 	return FALSE;
 }
 
+#ifdef WIN32
+
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
 
@@ -168,8 +168,13 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	return 0;
 }
 
+#else
+//this makes a console and a window
+
 int main()
 {
 	return _tWinMain(GetModuleHandle(NULL), NULL, GetCommandLine(), SW_SHOW);
 }
+
+#endif
 
