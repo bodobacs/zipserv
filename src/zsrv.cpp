@@ -62,8 +62,7 @@ czsrv::czsrv() : request_str(buffer_size, '0')
 	client_socket = 0;
 	listen_port = 19000;
 
-	barchive_ok = false;
-	barchive_used = false;
+	barchive_ok = false; //successful open
 }
 
 czsrv::~czsrv()
@@ -351,13 +350,19 @@ void czsrv::list_mimetypes(void)
 {
 	for(std::map<std::string, std::string>::const_iterator  itr = mimetypes.begin(); itr != mimetypes.end(); itr++)
 	{
-	 std::cout << itr->first << " " << itr->second << std::endl;
+		std::cout << itr->first << " " << itr->second << std::endl;
 	}
 }
 
+//must use between two run_server
 bool czsrv::open_archive(const std::string fn)
 {
-	return !barchive_used && (barchive_ok = archive.open(fn));
+	return barchive_ok = archive.open(fn);
+}
+
+bool &czsrv::is_open_ok(void)
+{
+	return barchive_ok;
 }
 
 bool czsrv::init(int p)
@@ -524,7 +529,6 @@ bool czsrv::run_server(void)
 					}
 				}else{
 					client_socket = i;
-					barchive_used = true;
 					if(!webserv()) //socket state changed, try to serve or close
 					{
 						std::clog << "[Closing socket] " << i << std::endl;
@@ -533,7 +537,6 @@ bool czsrv::run_server(void)
 						close(i);
 						FD_CLR(i, &open_sockets);
 					}
-					barchive_used = false;
 				}//check socket
 			}//for
 		}else if(r == 0)

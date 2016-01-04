@@ -62,14 +62,14 @@ IF(WIN32)
 	IF(MINGW)
 		SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x")
 	ELSE(MINGW)
-		SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Qstd=c++11")
+		#SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Qstd=c++11")
 	ENDIF(MINGW)
 
 
 	set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MD")
 	set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /MDd")
 
-	#zlib PATH HERE
+	#zlib PATH HERE build it or download it
 	set(ZLIB_DIR ${CMAKE_SOURCE_DIR}/../../zlib-1.2.8-bin)
 
 	set(CMAKE_PREFIX_PATH ${ZLIB_DIR})
@@ -104,9 +104,11 @@ IF(WIN32)
 	target_link_libraries(zserv_cli archives wsock32 ws2_32)
 
 	#WIN32 -> WinMain not console program!
-	#	add_executable(zserv WIN32 zsrv.cpp zserv_dialog.rc winmain.cpp)
-	add_executable(zserv zsrv.cpp zserv_dialog.rc winmain.cpp)
+	add_executable(zserv WIN32 zsrv.cpp zserv_dialog.rc winmain.cpp)
 	target_link_libraries(zserv archives wsock32 ws2_32)
+
+	add_executable(zserv-debug zsrv.cpp zserv_dialog.rc winmain.cpp)
+	target_link_libraries(zserv-debug archives wsock32 ws2_32)
 
 ENDIF(WIN32) #IF(WIN32)
 

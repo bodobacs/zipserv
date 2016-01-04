@@ -7,6 +7,11 @@
 #include "./modchmlib/chm_lib.h"
 #include "archives.h"
 
+#if defined(_MSC_VER)
+#pragma message ("_MSC_VER exist")
+	typedef std::map<int, std::string> TypeCodemap;
+#endif
+
 class carchive_zip : public carchive_base
 {
 
@@ -15,8 +20,8 @@ class carchive_zip : public carchive_base
 public:
 
 // minizip/unzip return messages 
-#if defined(_MSVC_VER)
-	const std::map<int, std::string> unzip_return_codes = std::map<int, std::string>{ //error C2797: list initialization inside member initializer list or non-static data member initializer is not implemented
+#if defined(_MSC_VER)
+	const TypeCodemap unzip_return_codes = TypeCodemap{ //error C2797: list initialization inside member initializer list or non-static data member initializer is not implemented
 #else
 // minizip/unzip return messages (this is the standard)
 	const std::map<int, std::string> unzip_return_codes{
@@ -190,7 +195,7 @@ public:
 	unsigned int offset = 0;
 	unsigned int read(char *buffer, const int &buffer_size)
 	{
-		unsigned int len = chm_retrieve_object(chmfile, &rundata.ui, (unsigned char *)buffer, offset, buffer_size);
+		unsigned int len = (unsigned int)chm_retrieve_object(chmfile, &rundata.ui, (unsigned char *)buffer, offset, buffer_size);
 		offset += len;
 		return len;
 	}
@@ -234,7 +239,7 @@ public:
 
 	bool list_start(void)
 	{
-		return chm_list_start(chmfile, &rundata, CHM_ENUMERATE_NORMAL);
+		return chm_list_start(chmfile, &rundata, CHM_ENUMERATE_NORMAL) != 0 ? true : false;
 	}
 
 	bool list_next_file(char *buffer, const int &buffer_size)

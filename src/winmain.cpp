@@ -31,25 +31,29 @@ czsrv server;
 int portnumber = 19000;
 std::string zipname;
 bool exit_on_stop = false;
+bool load_new_archive = false;
 
 unsigned __stdcall server_thread(void *pargs)
 {
 	if(!running)
 	{
-		if(server.init(zipname, portnumber))
+		if(server.init(portnumber))
 		{
 			running = true;
 			SendMessage(g_hwnd, WM_SERVER, 0, 0);
 
 			std::stringstream ss; ss << "Server running. Port: " << portnumber << std::endl;
 			SetDlgItemText(g_hwnd, ID_STATUS, ss.str().c_str());
-			while(server.run_server());
+			while(server.run_server())
+			{
+				if(load_new_archive) server.open_archive(zipname);
+			}
 			server.cleanup();
 		}else{
 			portnumber = (portnumber + 1 < 19100) ? portnumber + 1 : 19000;
 		}
 
-		std::stringstream ss; ss << "Server stopped" << portnumber << std::endl;
+		std::stringstream ss; ss << "Server stopped" << std::endl;
 		SetDlgItemText(g_hwnd, ID_STATUS, ss.str().c_str());
 
 		running = false;
@@ -65,14 +69,21 @@ INT_PTR CALLBACK WndProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 	g_hwnd = hDlg;
 	switch (message) {
 	case WM_INITDIALOG:
+		SetDlgItemText(hDlg, ID_PORT, "19000");
 		return (TRUE);
 
 	case WM_SERVER:
+		//update server status
+		if(server.is_open_ok()) SetDlgItemText(hDlg, ID_ZIPNAME, zipname.c_str());
+		else SetDlgItemText(hDlg, ID_ZIPNAME, "Cannot open file!");
+		
+
 		if(running)
 		{
 			EnableWindow( GetDlgItem( hDlg, ID_START ), FALSE);
 			EnableWindow( GetDlgItem( hDlg, ID_STOP), TRUE);
 			EnableWindow( GetDlgItem( hDlg, ID_BROWSER), TRUE);
+			EnableWindow( GetDlgItem( hDlg, ID_PORT), TRUE);
 			
 		}else{
 			CloseHandle(server_thread_handle);
@@ -81,6 +92,7 @@ INT_PTR CALLBACK WndProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 			EnableWindow( GetDlgItem( hDlg, ID_START ), TRUE);
 			EnableWindow( GetDlgItem( hDlg, ID_STOP), FALSE);
 			EnableWindow( GetDlgItem( hDlg, ID_BROWSER), FALSE);
+			EnableWindow( GetDlgItem( hDlg, ID_PORT), FALSE);
 
 			SetDlgItemText(hDlg, ID_STOP, "Stop server");
 
@@ -91,6 +103,10 @@ INT_PTR CALLBACK WndProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 	  case WM_COMMAND:
 	  	switch LOWORD(wParam){
 			case ID_START:
+				{
+				BOOL b;
+				portnumber = GetDlgItemInt(hDlg, ID_PORT, &b, FALSE);
+				}
 				server_thread_handle = (HANDLE)_beginthreadex(0, 0, &server_thread, 0, 0, 0);
 				return (TRUE);
 
@@ -118,8 +134,16 @@ INT_PTR CALLBACK WndProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 						zipname.assign(szFileName);
 						if(zipname.length() > 0)
 						{
-							SetDlgItemText(hDlg, ID_ZIPNAME, zipname.c_str());
-							if(!running) EnableWindow( GetDlgItem( hDlg, ID_START ), TRUE);
+							if(running)
+							{
+								load_new_archive = true;
+							}else{
+								if(server.open_archive(zipname))
+								{
+									SetDlgItemText(hDlg, ID_ZIPNAME, zipname.c_str());
+									EnableWindow( GetDlgItem( hDlg, ID_START ), TRUE);
+								}else SetDlgItemText(hDlg, ID_ZIPNAME, "Cannot open file!");
+							}
 						}
 					}
 				}

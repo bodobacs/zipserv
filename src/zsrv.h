@@ -66,7 +66,10 @@ public:
 	~czsrv();
 
 	carchive archive;
+
 	bool open_archive(const std::string fn);
+	bool &is_open_ok(void); //true if an archive already opened
+
 	bool init(int p);
 	bool run_server(void);
 
@@ -78,3 +81,4 @@ private:
 };
 
 #endif
+

@@ -32,10 +32,16 @@ int main(int argc, char **argv)
 
 		std::string filename(argv[1]);
 
-		if(server.init(filename, port))
+		if(server.open_archive(filename))
 		{
-			std::cout << "Starting to serve " << filename << " on port " << port << " ..." << std::endl;
-			while(server.run_server());
+			if(server.init(port))
+			{
+				std::cout << "Starting to serve " << filename << " on port " << port << " ..." << std::endl;
+				while(server.run_server());
+			}
+		}else{
+			std::cerr << filename << " cannot be opened!" << std::endl;
+			return 1;
 		}
 	}else{
 
