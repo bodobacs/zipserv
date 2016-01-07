@@ -59,9 +59,11 @@ ENDIF(UNIX) #IF(UNIX)
 
 IF(WIN32)
 
+
 	IF(MINGW)
 		SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x")
 	ELSE(MINGW)
+		#set(CMAKE_GENERATOR "NMake Makefiles")
 		#SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Qstd=c++11")
 	ENDIF(MINGW)
 
@@ -70,9 +72,17 @@ IF(WIN32)
 	set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /MDd")
 
 	#zlib PATH HERE build it or download it
-	set(ZLIB_DIR ${CMAKE_SOURCE_DIR}/../../zlib-1.2.8-bin)
+	set(ZLIB_DIR ${CMAKE_SOURCE_DIR}/../external/zlib-bin)
 
-	set(CMAKE_PREFIX_PATH ${ZLIB_DIR})
+	#	include(ExternalProject)
+	#ExternalProject_Add(zlib
+	#   PREFIX ${CMAKE_SOURCE_DIR}
+	#   SOURCE_DIR ${ZLIB_DIR}
+	#   BUILD_IN_SOURCE 0
+	#   BUILD_COMMAND nmake -f ${ZLIB_DIR}/win32/Makefile.msc
+	#   )
+
+	#set(CMAKE_PREFIX_PATH ${ZLIB_DIR})
 
 	include_directories( ${ZLIB_DIR}/include )
 

@@ -75,7 +75,7 @@ void czsrv::send_NOT_FOUND(const std::string &what)
 {
 	std::stringstream content_ss;
 
-	content_ss << "<html><head>\n<title>404 Not Found</title>\n</head><body>\n<h1>" << what << " Not Found</h1>\nThe requested URL was not found on this server.\n</body></html>\n";
+	content_ss << "<html><head>\n<title>404 Not Found</title>\n</head><body>\n<h1>" << what << " Not Found</h1>\nThe requested URL was not found by zserv-reader in \"" << archive.get_filename() << "\".\n</p><p><a href=\"http://localhost:" << listen_port << "\">Try index!</a></p></body></html>\n";
 
  std::stringstream response;
 	response << "HTTP/1.1 404 Not Found\nContent-Length: " << content_ss.str().length() << "\nConnection: close\nContent-Type: text/html\n\n" << content_ss.str();
@@ -192,7 +192,6 @@ void czsrv::send_file_list(void)
 			if(fn.length() -5 == fn.rfind(".html")
 			|| fn.length() -4 == fn.rfind(".htm"))
 			{
-
 				content << "<li><a href=\"" << filename_buffer << "\"/>" << filename_buffer << "</a></li>" << std::endl;
 
 				if(400 < content.str().length()) //be a bit bigger than a row
@@ -206,7 +205,6 @@ void czsrv::send_file_list(void)
 					f++;
 				}
 			}
-
 		}//for
 
 		if(f)// first try is failure
