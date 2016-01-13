@@ -2,7 +2,6 @@ cmake_minimum_required(VERSION 2.4.4)
 set(CMAKE_ALLOW_LOOSE_LOOP_CONSTRUCTS ON)
 
 project(zserv)
-set(VERSION "0.1")
 
 #variable set to minizip directory. This minizip is android compatible. Original name: ndk-unzip-master.
 set(LIBUNZIP ${CMAKE_SOURCE_DIR}/../libarchives/minizip)
@@ -74,22 +73,13 @@ IF(WIN32)
 	#zlib PATH HERE build it or download it
 	set(ZLIB_DIR ${CMAKE_SOURCE_DIR}/../external/zlib-bin)
 
-	#	include(ExternalProject)
-	#ExternalProject_Add(zlib
-	#   PREFIX ${CMAKE_SOURCE_DIR}
-	#   SOURCE_DIR ${ZLIB_DIR}
-	#   BUILD_IN_SOURCE 0
-	#   BUILD_COMMAND nmake -f ${ZLIB_DIR}/win32/Makefile.msc
-	#   )
-
-	#set(CMAKE_PREFIX_PATH ${ZLIB_DIR})
-
 	include_directories( ${ZLIB_DIR}/include )
 
 	#locally builded library minizip/unzip http://www.winimage.com/zLibDll/unzip11.zip depends on zlib
 	add_library(unzip ${LIBUNZIP}/unzip.c ${LIBUNZIP}/ioapi.c)
 	target_link_libraries(unzip ${ZLIB_DIR}/lib/zdll.lib)
 
+	#modified chm_lib in dll (LPGL)
 	set(LIBCHM ${CMAKE_SOURCE_DIR}/../libarchives/modchmlib)
 	#switch on __declspec(dllexport) in chm_lib.h
 	add_definitions(-Dshared_EXPORTS)
@@ -100,14 +90,15 @@ IF(WIN32)
 	#GENERATE_EXPORT_HEADER( modchmlib )
 	#target_include_directories(modchmlib PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 
+	#static common interface for zlib and chm_lib
 	set(LIBARCHIVES ${CMAKE_SOURCE_DIR}/../libarchives)
 	add_library(archives ${LIBARCHIVES}/archives.cpp ${LIBARCHIVES}/archives.h)
 	target_link_libraries(archives modchmlib unzip)
 
-	#product
+	#product testing libarchives, listing archives content
 	add_executable(test_archives ${LIBARCHIVES}/test_archives.cpp)
 	#used static libs
-	target_link_libraries(test_archives archives modchmlib unzip)
+	target_link_libraries(test_archives archives)
 	
 	#product
 	add_executable(zserv_cli zsrv.cpp main.cpp)
@@ -117,17 +108,46 @@ IF(WIN32)
 	add_executable(zserv WIN32 zsrv.cpp zserv_dialog.rc winmain.cpp)
 	target_link_libraries(zserv archives wsock32 ws2_32)
 
-	add_executable(zserv-debug zsrv.cpp zserv_dialog.rc winmain.cpp)
-	target_link_libraries(zserv-debug archives wsock32 ws2_32)
+	#add_executable(zserv-debug zsrv.cpp zserv_dialog.rc winmain.cpp)
+	#target_link_libraries(zserv-debug archives wsock32 ws2_32)
+
+	#on windows just put everything in installdir
+	install(TARGETS zserv zserv_cli modchmlib
+		RUNTIME
+		DESTINATION "./")
+
+	install(FILES ${ZLIB_DIR}/zlib1.dll
+		DESTINATION "./")
 
 ENDIF(WIN32) #IF(WIN32)
 
-# dependency map
-# zserv < unzip < zlib
 
-# build a CPack driven installer package
-#include (InstallRequiredSystemLibraries)
-#set (CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/license.txt")
-#set (CPACK_PACKAGE_VERSION_MAJOR "${_VERSION_MAJOR}")
-#set (CPACK_PACKAGE_VERSION_MINOR "${Tutorial_VERSION_MINOR}")
+INCLUDE(InstallRequiredSystemLibraries)
+
+SET(CPACK_PACKAGE_NAME "zserv-reader")
+SET(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Zserv ebook reader, works like a webserver.")
+SET(CPACK_PACKAGE_VENDOR "Bigplayer")
+SET(CPACK_PACKAGE_DESCRIPTION_FILE "${CMAKE_CURRENT_SOURCE_DIR}/ReadMe.txt")
+SET(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/Copyright.txt")
+SET(CPACK_PACKAGE_VERSION_MAJOR "1")
+SET(CPACK_PACKAGE_VERSION_MINOR "0")
+SET(CPACK_PACKAGE_VERSION_PATCH "0")
+SET(CPACK_PACKAGE_INSTALL_DIRECTORY "${CPACK_PACKAGE_NAME}")
+
+IF(WIN32 AND NOT UNIX)
+  # There is a bug in NSI that does not handle full unix paths properly. Make
+  # sure there is at least one set of four (4) backlasshes.
+  #SET(CPACK_PACKAGE_ICON "${CMake_SOURCE_DIR}/..\\\\InstallIcon.bmp")
+  SET(CPACK_NSIS_INSTALLED_ICON_NAME "bin\\\\zserv.exe")
+  SET(CPACK_NSIS_DISPLAY_NAME "${CPACK_PACKAGE_NAME}")
+  SET(CPACK_NSIS_HELP_LINK "https:\\\\\\\\sites.google.com/site/zservreader/")
+  SET(CPACK_NSIS_URL_INFO_ABOUT "https:\\\\\\\\sites.google.com/site/zservreader/")
+  SET(CPACK_NSIS_CONTACT "bigplayer.dev@gmail.com")
+  SET(CPACK_NSIS_MODIFY_PATH ON)
+ELSE(WIN32 AND NOT UNIX)
+  SET(CPACK_STRIP_FILES "bin/zserv")
+  SET(CPACK_SOURCE_STRIP_FILES "")
+ENDIF(WIN32 AND NOT UNIX)
+SET(CPACK_PACKAGE_EXECUTABLES "zserv" "zserv-reader")
+INCLUDE(CPack)
 
