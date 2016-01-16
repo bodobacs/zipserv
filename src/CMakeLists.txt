@@ -108,7 +108,7 @@ IF(WIN32)
 	#add_executable(zserv-debug zsrv.cpp zserv_dialog.rc winmain.cpp)
 	#target_link_libraries(zserv-debug archives wsock32 ws2_32)
 
-	#on windows just put everything in installdir
+	#cpack: on windows just put everything in installdir
 	install(TARGETS zserv zserv_cli modchmlib
 		RUNTIME
 		DESTINATION "./")

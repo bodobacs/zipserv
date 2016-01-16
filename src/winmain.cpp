@@ -83,7 +83,7 @@ INT_PTR CALLBACK WndProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 			EnableWindow( GetDlgItem( hDlg, ID_START ), FALSE);
 			EnableWindow( GetDlgItem( hDlg, ID_STOP), TRUE);
 			EnableWindow( GetDlgItem( hDlg, ID_BROWSER), TRUE);
-			EnableWindow( GetDlgItem( hDlg, ID_PORT), TRUE);
+			EnableWindow( GetDlgItem( hDlg, ID_PORT), FALSE);
 			
 		}else{
 			CloseHandle(server_thread_handle);
@@ -92,7 +92,7 @@ INT_PTR CALLBACK WndProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 			EnableWindow( GetDlgItem( hDlg, ID_START ), TRUE);
 			EnableWindow( GetDlgItem( hDlg, ID_STOP), FALSE);
 			EnableWindow( GetDlgItem( hDlg, ID_BROWSER), FALSE);
-			EnableWindow( GetDlgItem( hDlg, ID_PORT), FALSE);
+			EnableWindow( GetDlgItem( hDlg, ID_PORT), TRUE);
 
 			SetDlgItemText(hDlg, ID_STOP, "Stop server");
 
