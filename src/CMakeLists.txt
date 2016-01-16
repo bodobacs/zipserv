@@ -35,13 +35,8 @@ IF(UNIX)
 	target_link_libraries(test_archives archives modchmlib unzip)
 	
 	#product
-	add_executable(zserv ${CMAKE_SOURCE_DIR}/main.cpp ${CMAKE_SOURCE_DIR}/zsrv.cpp ${CMAKE_SOURCE_DIR}/zsrv.h ${CMAKE_SOURCE_DIR}/mimetypes.h ${LIBARCHIVES}/archives.h)
-	target_link_libraries(zserv archives)
-
-	#SET(CPACK_GENERATOR "DEB")
-	#SET(CPACK_DEBIAN_PACKAGE_MAINTAINER "Z") #required
-
-	#include (CPack)
+	add_executable(zserv_cli ${CMAKE_SOURCE_DIR}/main.cpp ${CMAKE_SOURCE_DIR}/zsrv.cpp ${CMAKE_SOURCE_DIR}/zsrv.h ${CMAKE_SOURCE_DIR}/mimetypes.h ${LIBARCHIVES}/archives.h)
+	target_link_libraries(zserv_cli archives)
 
 
 ENDIF(UNIX) #IF(UNIX)
@@ -60,7 +55,8 @@ IF(WIN32)
 
 
 	IF(MINGW)
-		SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x")
+		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x")
+#		set(CMAKE_EXE_LINKER_FLAGS "-static")
 	ELSE(MINGW)
 		#set(CMAKE_GENERATOR "NMake Makefiles")
 		#SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Qstd=c++11")
@@ -106,6 +102,7 @@ IF(WIN32)
 
 	#WIN32 -> WinMain not console program!
 	add_executable(zserv WIN32 zsrv.cpp zserv_dialog.rc winmain.cpp)
+
 	target_link_libraries(zserv archives wsock32 ws2_32)
 
 	#add_executable(zserv-debug zsrv.cpp zserv_dialog.rc winmain.cpp)
@@ -119,8 +116,16 @@ IF(WIN32)
 	install(FILES ${ZLIB_DIR}/zlib1.dll
 		DESTINATION "./")
 
+	add_custom_target(create_zip COMMAND
+		${CMAKE_COMMAND} -E tar "cfv" "archive.zip" --format=zip
+	       "${CMAKE_CURRENT_SOURCE_DIR}/testfile.txt"
+	       "${CMAKE_CURRENT_SOURCE_DIR}/testdir")
+
+
 ENDIF(WIN32) #IF(WIN32)
 
+# dependency map
+# zserv < unzip < zlib
 
 INCLUDE(InstallRequiredSystemLibraries)
 
@@ -135,19 +140,61 @@ SET(CPACK_PACKAGE_VERSION_PATCH "0")
 SET(CPACK_PACKAGE_INSTALL_DIRECTORY "${CPACK_PACKAGE_NAME}")
 
 IF(WIN32 AND NOT UNIX)
-  # There is a bug in NSI that does not handle full unix paths properly. Make
-  # sure there is at least one set of four (4) backlasshes.
-  #SET(CPACK_PACKAGE_ICON "${CMake_SOURCE_DIR}/..\\\\InstallIcon.bmp")
-  SET(CPACK_NSIS_INSTALLED_ICON_NAME "bin\\\\zserv.exe")
-  SET(CPACK_NSIS_DISPLAY_NAME "${CPACK_PACKAGE_NAME}")
-  SET(CPACK_NSIS_HELP_LINK "https:\\\\\\\\sites.google.com/site/zservreader/")
-  SET(CPACK_NSIS_URL_INFO_ABOUT "https:\\\\\\\\sites.google.com/site/zservreader/")
-  SET(CPACK_NSIS_CONTACT "bigplayer.dev@gmail.com")
-  SET(CPACK_NSIS_MODIFY_PATH ON)
+# There is a bug in NSI that does not handle full unix paths properly. Make
+# sure there is at least one set of four (4) backlasshes.
+	#SET(CPACK_PACKAGE_ICON "${CMake_SOURCE_DIR}/..\\\\InstallIcon.bmp")
+	SET(CPACK_NSIS_INSTALLED_ICON_NAME "bin\\\\zserv.exe")
+	SET(CPACK_NSIS_DISPLAY_NAME "${CPACK_PACKAGE_NAME}")
+	SET(CPACK_NSIS_HELP_LINK "https:\\\\\\\\sites.google.com/site/zservreader/")
+	SET(CPACK_NSIS_URL_INFO_ABOUT "https:\\\\\\\\sites.google.com/site/zservreader/")
+	SET(CPACK_NSIS_CONTACT "bigplayer.dev@gmail.com")
+	SET(CPACK_NSIS_MODIFY_PATH ON)
+
+	#set(CPACK_GENERATOR "ZIP;NSIS")
+	#set(CPACK_PACKAGE_EXECUTABLES zserv "zserv-reader")
+	SET(CPACK_PACKAGE_EXECUTABLES "zserv" "zserv-reader")
+
 ELSE(WIN32 AND NOT UNIX)
-  SET(CPACK_STRIP_FILES "bin/zserv")
-  SET(CPACK_SOURCE_STRIP_FILES "")
+	SET(CPACK_STRIP_FILES "bin/zserv")
+	SET(CPACK_SOURCE_STRIP_FILES "")
+	set(CPACK_PACKAGE_NAME zserv_cli)
+	set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Small server can be used to read zip and chm files in browser.")
+	set(CPACK_PACKAGE_DESCRIPTION_FILE "${CMAKE_CURRENT_SOURCE_DIR}/../readme.txt")
+	set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/../copyright.txt")
+	set(MY_VERSION ${CPACK_PACKAGE_VERSION_MAJOR}.${CPACK_PACKAGE_VERSION_MINOR}.${CPACK_PACKAGE_VERSION_PATCH})
+	set(CPACK_MONOLITHIC_INSTALL 1)
+	set(CPACK_GENERATOR "TGZ;DEB")
+
+	install( 	TARGETS zserv_cli 
+				RUNTIME DESTINATION bin
+				LIBRARY DESTINATION lib)
+
+	install( 	TARGETS modchmlib
+				RUNTIME DESTINATION bin
+				LIBRARY DESTINATION lib)
+
+	set(CPACK_PACKAGE_CONTACT "bigplayer.dev@gmail.com")
+	set(CPACK_DEBIAN_PACKAGE_MAINTAINER "zoltan fabian")
+	set(CPACK_DEBIAN_PACKAGE_DEPENDS zlib1g)
+
+	string(TOLOWER "${CPACK_PACKAGE_NAME}" CPACK_PACKAGE_NAME_LOWERCASE)
+	find_program(DPKG_PROGRAM dpkg DOC "dpkg program of Debian-based systems")
+	if(DPKG_PROGRAM)
+	  execute_process(
+		COMMAND ${DPKG_PROGRAM} --print-architecture
+		OUTPUT_VARIABLE CPACK_DEBIAN_PACKAGE_ARCHITECTURE
+		OUTPUT_STRIP_TRAILING_WHITESPACE
+	  )
+	  set(CPACK_PACKAGE_FILE_NAME
+	"${CPACK_PACKAGE_NAME_LOWERCASE}-${MY_VERSION}_${CPACK_DEBIAN_PACKAGE_ARCHITECTURE}")   
+
+	else(DPKG_PROGRAM)
+	  set(CPACK_PACKAGE_FILE_NAME
+	"${CPACK_PACKAGE_NAME_LOWERCASE}-${MY_VERSION}_${CMAKE_SYSTEM_NAME}")
+	endif(DPKG_PROGRAM)
+
+
 ENDIF(WIN32 AND NOT UNIX)
-SET(CPACK_PACKAGE_EXECUTABLES "zserv" "zserv-reader")
+
 INCLUDE(CPack)
 

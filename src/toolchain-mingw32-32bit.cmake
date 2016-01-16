@@ -11,7 +11,7 @@ set(CMAKE_C_FLAGS -m32)
 set(CMAKE_CXX_FLAGS -m32)
 
 set(CMAKE_EXE_LINKER_FLAGS "-static-libgcc -static")
-set(CMAKE_EXE_LINKER_FLAGS "-static-libgcc -static-libstdc++ -static")
+#set(CMAKE_EXE_LINKER_FLAGS "-static-libgcc -static-libstdc++ -Wl,-Bstatic -lstdc++ -lpthread -Wl,-Bdynamic")
 
 # here is the target environment located
 #32bit LIBRARIES!!!!!

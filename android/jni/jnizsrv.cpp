@@ -111,7 +111,7 @@ std::streambuf *pcerrbuf = std::cerr.rdbuf(), *pcoutbuf = std::cout.rdbuf(), *pc
 
 czsrv server;
 
-JNIEXPORT jboolean cf_init_server(JNIEnv *env, jobject obj, jint ji)
+JNIEXPORT jboolean JNICALL cf_init_server(JNIEnv *env, jobject obj, jint ji)
 {
 	__android_log_print(ANDROID_LOG_VERBOSE, TAG.c_str(), "server INIT");
 
@@ -130,7 +130,7 @@ JNIEXPORT jboolean cf_init_server(JNIEnv *env, jobject obj, jint ji)
 
 bool bserver_running = false;
 
-JNIEXPORT void cf_run_server(JNIEnv *env, jobject obj, jlong pointer)
+JNIEXPORT void JNICALL cf_run_server(JNIEnv *env, jobject obj, jlong pointer)
 {
 	__android_log_print(ANDROID_LOG_VERBOSE, TAG.c_str(), "server RUNNING ...");
 
@@ -151,13 +151,13 @@ JNIEXPORT void cf_run_server(JNIEnv *env, jobject obj, jlong pointer)
 	__android_log_print(ANDROID_LOG_VERBOSE, TAG.c_str(), "server NOT RUNNING");
 }
 
-JNIEXPORT void cf_stop_server(JNIEnv *env, jobject obj)
+JNIEXPORT void JNICALL cf_stop_server(JNIEnv *env, jobject obj)
 {
 	__android_log_print(ANDROID_LOG_VERBOSE, TAG.c_str(), "server STOP");
 	server.stop();
 }
 
-JNIEXPORT jboolean native_open_archive(JNIEnv *env, jobject obj, jstring jstr_fn)
+JNIEXPORT jboolean JNICALL native_open_archive(JNIEnv *env, jobject obj, jstring jstr_fn)
 {
 	__android_log_print(ANDROID_LOG_VERBOSE, TAG.c_str(), "Open archive file");
 
@@ -177,7 +177,7 @@ JNIEXPORT jboolean native_open_archive(JNIEnv *env, jobject obj, jstring jstr_fn
 	return JNI_FALSE;
 }
 
-JNIEXPORT jstring native_getfilename(JNIEnv *env, jobject obj)
+JNIEXPORT jstring JNICALL native_getfilename(JNIEnv *env, jobject obj)
 {
 	__android_log_print(ANDROID_LOG_VERBOSE, TAG.c_str(), "native_getfilename");
 	if(server.archive.get_filename().c_str())
@@ -185,7 +185,7 @@ JNIEXPORT jstring native_getfilename(JNIEnv *env, jobject obj)
 	else return 0;
 }
 
-JNIEXPORT jboolean native_is_server_running(JNIEnv *env, jobject obj)
+JNIEXPORT jboolean JNICALL native_is_server_running(JNIEnv *env, jobject obj)
 {
 	__android_log_print(ANDROID_LOG_VERBOSE, TAG.c_str(), "native_is_server_running");
 
@@ -193,7 +193,7 @@ JNIEXPORT jboolean native_is_server_running(JNIEnv *env, jobject obj)
 	else return JNI_FALSE;
 }
 
-JNIEXPORT jint native_getport(JNIEnv *env, jobject obj)
+JNIEXPORT jint JNICALL native_getport(JNIEnv *env, jobject obj)
 {
 	__android_log_print(ANDROID_LOG_VERBOSE, TAG.c_str(), "native_getport");
 
@@ -212,11 +212,11 @@ static JNINativeMethod method_table[] = {
 	{ "cf_run_server", "()V", (void *)cf_run_server},
 	{ "cf_stop_server", "()V", (void *)cf_stop_server},
 //	{ "myJNICallJavaFunc", "()V", (void *)myJNICallJavaFunc }, nem kell ez csak megkeresi a fuggvenyt a javaban es meghivja, nem kell regisztralni
-	{ "cf_init_server", "(I)Z", (bool *)cf_init_server}, //(String zip_fn, int nport);
-	{ "native_open_archive", "(Ljava/lang/String;)Z", (bool *)native_open_archive}, //(String zip_fn, int nport);
-	{ "native_getfilename", "()Ljava/lang/String;", (jstring *)native_getfilename},
-	{ "native_is_server_running", "()Z", (bool *)native_is_server_running},
-	{ "native_getport", "()I", (jint *)native_getport}
+	{ "cf_init_server", "(I)Z", (void *)cf_init_server}, //(String zip_fn, int nport);
+	{ "native_open_archive", "(Ljava/lang/String;)Z", (void *)native_open_archive}, //(String zip_fn, int nport);
+	{ "native_getfilename", "()Ljava/lang/String;", (void *)native_getfilename},
+	{ "native_is_server_running", "()Z", (void *)native_is_server_running},
+	{ "native_getport", "()I", (void *)native_getport}
 };
 
 JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void* reserved)
@@ -229,7 +229,7 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void* reserved)
 //		LOGI("JNI INIT");
 		return JNI_ERR;
 	}else{
-		jclass clazz = (env)->FindClass("hu/bigplayer/zipservapp/MyService");
+		jclass clazz = (env)->FindClass("hu/bigplayer/zservapp/MyService");
 		if (clazz) {
 			jint ret = (env)->RegisterNatives(clazz, method_table, method_table_size);
 			(env)->DeleteLocalRef(clazz);

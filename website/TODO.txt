@@ -1,0 +1,15 @@
+windows:
+
+Download compressed version or installer here.
+Extract it or install.
+Start zipserv.
+Follow buttons from top to down.
+Linux command line:
+
+Download compressed executable here
+Extract it
+./zserv path_to_executable
+Open your favourite browser and go to: http://localhost:19000 (The default
+port is 19000.)
+Browse it like a normal website.
+

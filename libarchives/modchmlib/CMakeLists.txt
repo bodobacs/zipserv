@@ -13,8 +13,8 @@ IF(UNIX)
 	add_library(chmlib chm_lib.c lzx.c)
 
 	#executable
-	add_executable(extract_chm enum_chmLib.c)
-	target_link_libraries(extract_chm chmlib)
+	add_executable(main main.cpp)
+	target_link_libraries(main chmlib)
 
 	#executable
 	add_executable(mytestchm list-chm.cpp)

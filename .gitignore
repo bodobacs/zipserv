@@ -8,5 +8,6 @@ test*/
 data/
 *.swp
 *.so
+*.zip
 res/
 external/
