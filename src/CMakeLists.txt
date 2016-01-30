@@ -127,7 +127,7 @@ ENDIF(WIN32) #IF(WIN32)
 # dependency map
 # zserv < unzip < zlib
 
-INCLUDE(InstallRequiredSystemLibraries)
+#INCLUDE(InstallRequiredSystemLibraries)
 
 SET(CPACK_PACKAGE_NAME "zserv-reader")
 SET(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Zserv ebook reader, works like a webserver.")

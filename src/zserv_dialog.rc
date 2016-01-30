@@ -20,7 +20,7 @@ CAPTION "zserv"
 FONT 8, "Ms Shell Dlg"
 {
     CTEXT           "Port:", 0, 57, 127, 16, 9, SS_CENTER, WS_EX_LEFT
-    EDITTEXT        ID_PORT, 77, 127, 60, 10, ES_AUTOHSCROLL | ES_NUMBER, WS_EX_LEFT
+    EDITTEXT        ID_PORT, 77, 127, 60, 12, ES_AUTOHSCROLL | ES_NUMBER, WS_EX_LEFT
     PUSHBUTTON      "Select zip file", ID_SELECT, 7, 7, 135, 22, 0, WS_EX_LEFT
     LTEXT           "Zip file name", ID_ZIPNAME, 7, 32, 135, 28, SS_LEFT, WS_EX_STATICEDGE
     LTEXT           "Status", ID_STATUS, 7, 62, 131, 33, SS_LEFT, WS_EX_STATICEDGE
@@ -29,3 +29,11 @@ FONT 8, "Ms Shell Dlg"
     PUSHBUTTON      "Stop server", ID_STOP, 75, 102, 66, 22, WS_DISABLED, WS_EX_LEFT
     DEFPUSHBUTTON   "Stop and  Exit", IDOK, 7, 167, 135, 22, 0, WS_EX_LEFT
 }
+
+
+
+//
+// Icon resources
+//
+LANGUAGE LANG_NEUTRAL, SUBLANG_NEUTRAL
+IDR_MAINFRAME      ICON           ".\\icon1.ico"
