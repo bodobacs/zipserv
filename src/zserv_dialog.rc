@@ -36,4 +36,4 @@ FONT 8, "Ms Shell Dlg"
 // Icon resources
 //
 LANGUAGE LANG_NEUTRAL, SUBLANG_NEUTRAL
-IDR_MAINFRAME      ICON           ".\\icon1.ico"
+IDR_MAINFRAME      ICON           "..\\res\\zserv_icon.ico"
