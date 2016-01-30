@@ -48,7 +48,7 @@ public class MyService extends Service
 		if(!s.isEmpty() && native_open_archive(s))
 		{
 			feedback_string(0, "Archive opened successfully");
-			sendNotification(s, "http://localhost:" + portnumber);
+			sendNotification(s, ZservApp.localhost + portnumber);
 			mopensuccess = true;
 
 			Log.d(TAG, "native_getfilename" + native_getfilename());
@@ -135,7 +135,7 @@ public class MyService extends Service
 //		Notification noti = new NotificationCompat.Builder(this)
 												.setAutoCancel(true)
 												.setContentTitle(this.getString(R.string.app_name))
-												.setContentText("http://localhost" + portnumber)
+												.setContentText(ZservApp.localhost + portnumber)
 												.setSmallIcon(R.drawable.zserv_icon_bar)
 												.setContentIntent(pIntent);
 											//	.build();

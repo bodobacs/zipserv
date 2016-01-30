@@ -260,12 +260,12 @@ public class ZservApp extends Activity
 
 	}
 
-	String localhost = "http://localhost:";
+	final static String localhost = "http://localhost:";
 	int portnumber;
 
 	public void open_site()
 	{
-		Intent browserIntent = new Intent(Intent.ACTION_VIEW, android.net.Uri.parse("http://localhost:" + portnumber));
+		Intent browserIntent = new Intent(Intent.ACTION_VIEW, android.net.Uri.parse(localhost + portnumber));
 		startActivity(browserIntent);
 	}
 
